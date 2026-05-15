@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}GDPR Rights Request - AgentFlow{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <h1 class="h4 mb-2">GDPR Data Subject Rights Request</h1>
+        <p class="text-muted">Use this form to request access, deletion, correction, portability, or processing restrictions for your personal data.</p>
+
+        {% if current_user.is_authenticated %}
+          <form method="post" action="/gdpr" id="gdpr-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+              <label class="form-label">Request Type</label>
+              <select name="request_type" class="form-select" required>
+                <option value="access">Data Access Request</option>
+                <option value="deletion">Data Deletion Request</option>
+                <option value="rectification">Data Correction Request</option>
+                <option value="portability">Data Portability Request</option>
+                <option value="restriction">Restrict Processing Request</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Confirm Account Email</label>
+              <input type="email" name="email" class="form-control" value="{{ current_user.email }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Details</label>
+              <textarea class="form-control" name="details" rows="6" minlength="20" required></textarea>
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="gdpr-confirm" required>
+              <label class="form-check-label" for="gdpr-confirm">I confirm that this request is submitted by the account owner.</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit GDPR Request</button>
+          </form>
+        {% else %}
+          <div class="alert alert-info">Please sign in to submit a GDPR request tied to your account.</div>
+          <a href="/auth/login" class="btn btn-primary">Sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="mb-2">Response Timeline</h5>
+        <p class="small text-muted mb-0">We acknowledge requests within 72 hours and respond within 30 days, subject to identity verification and legal exceptions.</p>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="mb-2">Required Information</h5>
+        <ul class="small text-muted mb-0">
+          <li>Your registered account email</li>
+          <li>Clear request scope</li>
+          <li>Optional supporting context</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-2">Need Help?</h5>
+        <p class="small text-muted mb-0">Contact privacy@agentflow.ai for compliance questions.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

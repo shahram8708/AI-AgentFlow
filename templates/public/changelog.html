@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Changelog{% endblock %}
+
+{% block extra_css %}
+<style>
+  .changelog-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 3.5rem;
+  }
+
+  .changelog-wrap {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .dot-list {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .dot-list li {
+    position: relative;
+    padding-left: 1rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .dot-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.5rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .dot-list.features li::before {
+    background: var(--success);
+  }
+
+  .dot-list.improvements li::before {
+    background: var(--primary);
+  }
+
+  .dot-list.fixes li::before {
+    background: var(--text-muted);
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  <section class="changelog-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-2">What's New</h1>
+      <p class="lead text-white-50 mb-3">Follow our journey as we ship new features</p>
+      <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+        <a href="#" class="btn btn-outline-light btn-sm"><i class="bi bi-rss me-1"></i>RSS Feed</a>
+      </div>
+      <form class="d-flex flex-column flex-sm-row justify-content-center gap-2" method="post" action="{{ url_for('public.newsletter_subscribe') }}">
+        <input type="email" class="form-control form-control-sm" style="max-width: 320px;" name="email" placeholder="Subscribe to updates" required>
+        <button class="btn btn-light btn-sm" type="submit">Subscribe</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="py-5">
+    <div class="container">
+      <div class="changelog-wrap">
+        {% for entry in changelog_entries %}
+          <article class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge text-bg-primary">{{ entry.version }}</span>
+              <span class="text-muted small">{{ entry.date }}</span>
+            </div>
+            <h2 class="h4 fw-bold mb-3">{{ entry.title }}</h2>
+
+            <div class="mb-3">
+              <h3 class="h6 text-success-emphasis mb-2">New Features</h3>
+              <ul class="dot-list features mb-0">
+                {% for item in entry.new_features %}
+                  <li>{{ item }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <h3 class="h6 text-primary mb-2">Improvements</h3>
+              <ul class="dot-list improvements mb-0">
+                {% for item in entry.improvements %}
+                  <li>{{ item }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <h3 class="h6 text-secondary mb-2">Bug Fixes</h3>
+              <ul class="dot-list fixes mb-0">
+                {% for item in entry.bug_fixes %}
+                  <li>{{ item }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            {% if entry.breaking_changes %}
+              <div class="alert alert-danger py-2 px-3 mb-0">
+                <strong>Breaking Changes</strong>
+                <ul class="mb-0 mt-2 ps-3">
+                  {% for item in entry.breaking_changes %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          </article>
+
+          {% if not loop.last %}
+            <hr class="my-4">
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}

@@ -1,0 +1,538 @@
+{% extends "app/base_app.html" %}
+{% from 'partials/macros.html' import usage_bar %}
+
+{% block title %}Team - AgentFlow{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <div class="text-muted small mb-1">Dashboard &gt; Team</div>
+    <h2 class="h3 mb-0">Team Members <span class="badge bg-primary-subtle text-primary ms-2">{{ active_count }}</span></h2>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if can_manage %}
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#invite-modal">
+        <i class="bi bi-person-plus me-1"></i>Invite Member
+      </button>
+    {% endif %}
+    {% set seats_limit_display = plan.seat_limit if plan and plan.seat_limit != -1 else '∞' %}
+    <span class="badge text-bg-light border">{{ seats_used }} / {{ seats_limit_display }} seats used</span>
+  </div>
+</div>
+
+{# ====== SEAT USAGE ====== #}
+{% if plan and plan.seat_limit != -1 %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      {{ usage_bar(seats_used, plan.seat_limit, label='Seats') }}
+      <div class="small mt-2">
+        Need more seats?
+        {% if g_next_plan %}
+          <a href="/settings/billing" class="text-decoration-none">Upgrade Plan → {{ g_next_plan.monthly_price_display }}</a>
+        {% else %}
+          <a href="/settings/billing" class="text-decoration-none">Upgrade Plan →</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{# ====== ACTIVE MEMBERS TABLE ====== #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0 pt-4">
+    <h4 class="h5 mb-0">Active Members</h4>
+  </div>
+  <div class="card-body pt-3">
+    <div class="table-responsive">
+      <table class="table align-middle" id="active-members-table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th>Last Active</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in active_members %}
+            {% set member = item.membership %}
+            {% set user = item.user %}
+            <tr id="member-row-{{ member.id }}" class="{% if item.is_current_user %}table-primary-subtle{% endif %}">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% if user.avatar_url %}
+                    <img src="{{ user.avatar_url }}" alt="{{ user.get_full_name() }}" class="rounded-circle border" width="36" height="36">
+                  {% else %}
+                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center text-white fw-semibold"
+                          style="width:36px;height:36px;background:{{ item.avatar_color }};">
+                      {{ item.initials }}
+                    </span>
+                  {% endif %}
+                  <div>
+                    <div class="fw-semibold">
+                      {% if item.is_owner %}<i class="bi bi-shield-fill text-warning me-1"></i>{% endif %}
+                      {{ user.get_full_name() }}
+                      {% if item.is_current_user %}<span class="badge bg-info-subtle text-info ms-1">You</span>{% endif %}
+                    </div>
+                    <div class="small text-muted">{{ user.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if member.role == 'owner' %}
+                  <span class="badge text-bg-dark">Owner</span>
+                {% elif member.role == 'admin' %}
+                  <span class="badge text-bg-warning">Admin</span>
+                {% elif member.role == 'member' %}
+                  <span class="badge text-bg-primary">Member</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Viewer</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.status == 'active' %}
+                  <span class="d-inline-flex align-items-center gap-1"><span class="rounded-circle bg-success" style="width:8px;height:8px;"></span>Active</span>
+                {% elif item.status == 'inactive' %}
+                  <span class="d-inline-flex align-items-center gap-1"><span class="rounded-circle bg-warning" style="width:8px;height:8px;"></span>Inactive</span>
+                {% else %}
+                  <span class="d-inline-flex align-items-center gap-1"><span class="rounded-circle bg-secondary" style="width:8px;height:8px;"></span>Never logged in</span>
+                {% endif %}
+              </td>
+              <td>{{ member.joined_at | timeago }}</td>
+              <td>{{ user.last_login | timeago if user.last_login else 'Never' }}</td>
+              <td class="text-end">
+                {% if can_manage and not item.is_current_user and not item.is_owner %}
+                  <div class="d-flex gap-2 justify-content-end">
+                    <select class="form-select form-select-sm role-select" data-member-id="{{ member.id }}" style="max-width: 150px;">
+                      <option value="admin" {% if member.role == 'admin' %}selected{% endif %}>Admin</option>
+                      <option value="member" {% if member.role == 'member' %}selected{% endif %}>Member</option>
+                      <option value="viewer" {% if member.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                    </select>
+                    <button class="btn btn-outline-danger btn-sm remove-member-btn" data-member-id="{{ member.id }}" data-loading-text="Deleting...">Remove</button>
+                  </div>
+                {% else %}
+                  <span class="text-muted small">No actions</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">No active members found.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ====== PENDING INVITATIONS ====== #}
+{% if can_manage and pending_invitations %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
+      <h4 class="h5 mb-0">Pending Invitations ({{ pending_invitations|length }})</h4>
+      <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#pending-invitations-wrap" aria-expanded="true">
+        Toggle
+      </button>
+    </div>
+    <div id="pending-invitations-wrap" class="collapse show">
+      <div class="card-body pt-2">
+        <div class="table-responsive">
+          <table class="table align-middle" id="pending-invitations-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Invited</th>
+                <th>Expires</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in pending_invitations %}
+                {% set member = item.membership %}
+                {% set user = item.user %}
+                <tr id="pending-row-{{ member.id }}">
+                  <td>{{ user.email }}</td>
+                  <td>
+                    {% if member.role == 'admin' %}<span class="badge text-bg-warning">Admin</span>{% endif %}
+                    {% if member.role == 'member' %}<span class="badge text-bg-primary">Member</span>{% endif %}
+                    {% if member.role == 'viewer' %}<span class="badge text-bg-secondary">Viewer</span>{% endif %}
+                  </td>
+                  <td>{{ member.invited_at | timeago if member.invited_at else '-' }}</td>
+                  <td>{{ item.expires_at | timeago if item.expires_at else '-' }}</td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary resend-invite-btn" data-member-id="{{ member.id }}" data-loading-text="Sending invitation...">Resend</button>
+                    <button class="btn btn-sm btn-outline-danger cancel-invite-btn" data-member-id="{{ member.id }}" data-loading-text="Cancelling...">Cancel</button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{# ====== ROLE PERMISSIONS REFERENCE ====== #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 pt-4">
+    <h4 class="h5 mb-0">Role Permissions</h4>
+  </div>
+  <div class="card-body pt-3">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Permission</th>
+            <th>Owner</th>
+            <th>Admin</th>
+            <th>Member</th>
+            <th>Viewer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Launch Tasks</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-danger">❌</td></tr>
+          <tr><td>View Tasks</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-success">✅</td></tr>
+          <tr><td>Manage Workflows</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-danger">❌</td></tr>
+          <tr><td>Manage Integrations</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-danger">❌</td><td class="text-danger">❌</td></tr>
+          <tr><td>Manage Team</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-danger">❌</td><td class="text-danger">❌</td></tr>
+          <tr><td>Access Billing</td><td class="text-success">✅</td><td class="text-success">✅</td><td class="text-danger">❌</td><td class="text-danger">❌</td></tr>
+          <tr><td>Admin Panel</td><td class="text-success">✅</td><td class="text-danger">❌</td><td class="text-danger">❌</td><td class="text-danger">❌</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ====== INVITE MODAL ====== #}
+<div class="modal fade" id="invite-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Invite Team Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {% if plan and plan.seat_limit != -1 and seats_used >= plan.seat_limit %}
+          <div class="alert alert-warning mb-0">
+            You have reached your seat limit. <a href="/settings/billing" class="alert-link">Upgrade your plan</a> to invite more members.
+          </div>
+        {% else %}
+          <form id="invite-member-form" class="needs-validation" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+              <label for="invite-email" class="form-label">Email address</label>
+              <input type="email" class="form-control" id="invite-email" required placeholder="name@company.com">
+              <div class="invalid-feedback">Please enter a valid email address.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Assign Role</label>
+              <div class="row g-3" id="invite-role-cards">
+                <div class="col-md-4">
+                  <label class="card h-100 role-card p-3" for="role-admin" data-selection="true">
+                    <input class="form-check-input mb-2" type="radio" name="invite-role" value="admin" id="role-admin">
+                    <div class="fw-semibold"><i class="bi bi-shield-check me-1"></i>Admin</div>
+                    <div class="small text-muted">Can manage tasks, workflows, integrations, team, and billing settings.</div>
+                  </label>
+                </div>
+                <div class="col-md-4">
+                  <label class="card h-100 role-card p-3 border-primary" for="role-member" data-selection="true">
+                    <input class="form-check-input mb-2" type="radio" name="invite-role" value="member" id="role-member" checked>
+                    <div class="fw-semibold"><i class="bi bi-person-check me-1"></i>Member</div>
+                    <div class="small text-muted">Can create and run tasks and workflows. Cannot access billing or team settings.</div>
+                  </label>
+                </div>
+                <div class="col-md-4">
+                  <label class="card h-100 role-card p-3" for="role-viewer" data-selection="true">
+                    <input class="form-check-input mb-2" type="radio" name="invite-role" value="viewer" id="role-viewer">
+                    <div class="fw-semibold"><i class="bi bi-eye me-1"></i>Viewer</div>
+                    <div class="small text-muted">Read only access to tasks, outputs, and reports. Cannot create or run tasks.</div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary" id="send-invite-btn" data-loading-text="Sending invitation...">Send Invitation</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    "use strict";
+
+    function roleBadge(role) {
+      if (role === "admin") {
+        return '<span class="badge text-bg-warning">Admin</span>';
+      }
+      if (role === "viewer") {
+        return '<span class="badge text-bg-secondary">Viewer</span>';
+      }
+      return '<span class="badge text-bg-primary">Member</span>';
+    }
+
+    function addPendingInvitationRow(data) {
+      var table = document.querySelector("#pending-invitations-table tbody");
+      if (!table) {
+        window.location.reload();
+        return;
+      }
+
+      var row = document.createElement("tr");
+      row.id = "pending-row-" + data.member_id;
+      row.innerHTML =
+        "<td>" + data.email + "</td>" +
+        "<td>" + roleBadge(data.role) + "</td>" +
+        "<td>just now</td>" +
+        "<td>in 7 days</td>" +
+        '<td class="text-end">' +
+        '<button class="btn btn-sm btn-outline-primary resend-invite-btn" data-member-id="' + data.member_id + '">Resend</button> ' +
+        '<button class="btn btn-sm btn-outline-danger cancel-invite-btn" data-member-id="' + data.member_id + '">Cancel</button>' +
+        "</td>";
+      table.prepend(row);
+    }
+
+    async function updateRole(memberId, role) {
+      var response = await fetch("/team/" + memberId + "/role", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+        },
+        body: JSON.stringify({ role: role })
+      });
+      var payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.message || "Unable to update role");
+      }
+      return payload;
+    }
+
+    async function removeMember(memberId) {
+      var response = await fetch("/team/" + memberId, {
+        method: "DELETE",
+        headers: { "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "" }
+      });
+      var payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.message || "Unable to remove member");
+      }
+      return payload;
+    }
+
+    async function cancelInvite(memberId) {
+      var response = await fetch("/team/invitations/" + memberId, {
+        method: "DELETE",
+        headers: { "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "" }
+      });
+      var payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.message || "Unable to cancel invitation");
+      }
+      return payload;
+    }
+
+    async function resendInvite(memberId) {
+      var response = await fetch("/team/invitations/" + memberId + "/resend", {
+        method: "POST",
+        headers: { "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "" }
+      });
+      var payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.message || "Unable to resend invitation");
+      }
+      return payload;
+    }
+
+    document.addEventListener("change", function (event) {
+      var select = event.target.closest(".role-select");
+      if (!select) {
+        return;
+      }
+
+      var memberId = select.getAttribute("data-member-id");
+      var selectedRole = select.value;
+      updateRole(memberId, selectedRole)
+        .then(function () {
+          if (window.showToast) {
+            window.showToast("Role updated successfully", "success");
+          }
+        })
+        .catch(function (error) {
+          if (window.showToast) {
+            window.showToast(error.message, "danger");
+          }
+        });
+    });
+
+    document.addEventListener("click", function (event) {
+      var removeBtn = event.target.closest(".remove-member-btn");
+      if (removeBtn) {
+        var memberId = removeBtn.getAttribute("data-member-id");
+        if (!window.confirm("Remove this team member?")) {
+          return;
+        }
+
+        if (window.setButtonLoading) {
+          window.setButtonLoading(removeBtn, "Deleting...");
+        }
+
+        removeMember(memberId)
+          .then(function () {
+            var row = document.getElementById("member-row-" + memberId);
+            if (row) {
+              row.classList.add("opacity-50");
+              setTimeout(function () {
+                row.remove();
+              }, 250);
+            }
+            if (window.showToast) {
+              window.showToast("Member removed", "success");
+            }
+          })
+          .catch(function (error) {
+            if (window.showToast) {
+              window.showToast(error.message, "danger");
+            }
+          })
+          .finally(function () {
+            if (window.resetButton) {
+              window.resetButton(removeBtn);
+            }
+          });
+        return;
+      }
+
+      var cancelBtn = event.target.closest(".cancel-invite-btn");
+      if (cancelBtn) {
+        var inviteId = cancelBtn.getAttribute("data-member-id");
+        if (!window.confirm("Cancel this invitation?")) {
+          return;
+        }
+
+        if (window.setButtonLoading) {
+          window.setButtonLoading(cancelBtn, "Cancelling...");
+        }
+
+        cancelInvite(inviteId)
+          .then(function () {
+            var pendingRow = document.getElementById("pending-row-" + inviteId);
+            if (pendingRow) {
+              pendingRow.remove();
+            }
+            if (window.showToast) {
+              window.showToast("Invitation cancelled", "success");
+            }
+          })
+          .catch(function (error) {
+            if (window.showToast) {
+              window.showToast(error.message, "danger");
+            }
+          })
+          .finally(function () {
+            if (window.resetButton) {
+              window.resetButton(cancelBtn);
+            }
+          });
+        return;
+      }
+
+      var resendBtn = event.target.closest(".resend-invite-btn");
+      if (resendBtn) {
+        var memberIdForResend = resendBtn.getAttribute("data-member-id");
+        if (window.setButtonLoading) {
+          window.setButtonLoading(resendBtn, "Sending invitation...");
+        }
+        resendInvite(memberIdForResend)
+          .then(function () {
+            if (window.showToast) {
+              window.showToast("Invitation resent", "success");
+            }
+          })
+          .catch(function (error) {
+            if (window.showToast) {
+              window.showToast(error.message, "danger");
+            }
+          })
+          .finally(function () {
+            if (window.resetButton) {
+              window.resetButton(resendBtn);
+            }
+          });
+      }
+    });
+
+    var inviteForm = document.getElementById("invite-member-form");
+    inviteForm && inviteForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      var emailInput = document.getElementById("invite-email");
+      var roleInput = document.querySelector('input[name="invite-role"]:checked');
+      var sendBtn = document.getElementById("send-invite-btn");
+
+      if (!emailInput.value || !roleInput) {
+        if (window.showToast) {
+          window.showToast("Please provide invite email and role", "warning");
+        }
+        return;
+      }
+
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sending...';
+
+      fetch("/team/invite", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+        },
+        body: JSON.stringify({
+          email: emailInput.value.trim(),
+          role: roleInput.value
+        })
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (payload) {
+          if (!payload.success) {
+            throw new Error(payload.message || "Unable to send invitation");
+          }
+
+          addPendingInvitationRow(payload.data);
+          emailInput.value = "";
+
+          var modalElement = document.getElementById("invite-modal");
+          var modalInstance = bootstrap.Modal.getInstance(modalElement);
+          if (modalInstance) {
+            modalInstance.hide();
+          }
+
+          if (window.showToast) {
+            window.showToast("Invitation sent!", "success");
+          }
+        })
+        .catch(function (error) {
+          if (window.showToast) {
+            window.showToast(error.message, "danger");
+          }
+        })
+        .finally(function () {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = "Send Invitation";
+        });
+    });
+  })();
+</script>
+{% endblock %}

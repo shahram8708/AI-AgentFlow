@@ -1,0 +1,279 @@
+{% from 'partials/macros.html' import plan_badge %}
+{% set path = request.path %}
+{% set launch_task_active = path == '/tasks/new' or path.startswith('/tasks/configure') %}
+{% set task_history_active = path.startswith('/tasks') and not launch_task_active %}
+{% set current_plan_name = plan.name if plan is defined and plan else (g_plan.name if g_plan else 'Free') %}
+{% set quota_percent_value = quota_percent if quota_percent is defined else g_quota_percent %}
+{% set quota_used_value = quota_used if quota_used is defined else g_quota_used %}
+{% set quota_limit_value = quota_limit if quota_limit is defined else g_quota_limit %}
+{% set unread_count_value = unread_count if unread_count is defined else g_unread_count %}
+{% set next_plan_value = next_plan if next_plan is defined and next_plan else g_next_plan %}
+{% set can_view_audit = current_user.role == 'admin' or (g_org and g_org.owner_id == current_user.id) %}
+
+{# ====== APP SIDEBAR ====== #}
+<aside class="app-sidebar" id="app-sidebar" aria-label="Primary navigation">
+  {# ====== SIDEBAR TOP ====== #}
+  <div class="sidebar-top-wrap">
+    <div class="sidebar-brand-row">
+      <a href="/dashboard" class="sidebar-brand-link" aria-label="AgentFlow dashboard">
+        <span class="sidebar-brand-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+        <span class="sidebar-label sidebar-brand-text">AgentFlow</span>
+      </a>
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        data-sidebar-toggle
+        data-no-loading
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Toggle sidebar"
+        aria-label="Toggle sidebar"
+      >
+        <i class="bi bi-chevron-left sidebar-toggle-icon"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-plan-wrap">
+      {{ plan_badge(current_plan_name) }}
+    </div>
+  </div>
+
+  {# ====== SIDEBAR NAVIGATION ====== #}
+  <nav class="sidebar-nav" aria-label="Sidebar links">
+    <a
+      class="sidebar-link {% if path == '/dashboard' %}active{% endif %}"
+      href="/dashboard"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Dashboard"
+    >
+      <i class="bi bi-speedometer2"></i>
+      <span class="sidebar-label">Dashboard</span>
+    </a>
+
+    <a
+      class="sidebar-link sidebar-link-primary {% if launch_task_active %}active{% endif %}"
+      href="/tasks/new"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Launch Task"
+    >
+      <i class="bi bi-plus-circle-fill"></i>
+      <span class="sidebar-label">Launch Task</span>
+    </a>
+
+    <div class="sidebar-group-label">AUTOMATE</div>
+    <a
+      class="sidebar-link {% if task_history_active %}active{% endif %}"
+      href="/tasks"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Task History"
+    >
+      <i class="bi bi-clock-history"></i>
+      <span class="sidebar-label">Task History</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/workflows') %}active{% endif %}"
+      href="/workflows"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Workflows"
+    >
+      <i class="bi bi-diagram-3"></i>
+      <span class="sidebar-label">Workflows</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/templates') %}active{% endif %}"
+      href="/templates"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Templates"
+    >
+      <i class="bi bi-grid-3x3-gap"></i>
+      <span class="sidebar-label">Templates</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/schedules') %}active{% endif %}"
+      href="/schedules"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Schedules"
+    >
+      <i class="bi bi-calendar-event"></i>
+      <span class="sidebar-label">Schedules</span>
+    </a>
+
+    <div class="sidebar-group-label">MANAGE</div>
+    <a
+      class="sidebar-link {% if path.startswith('/projects') %}active{% endif %}"
+      href="/projects"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Projects"
+    >
+      <i class="bi bi-folder2-open"></i>
+      <span class="sidebar-label">Projects</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/outputs') %}active{% endif %}"
+      href="/outputs"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Outputs"
+    >
+      <i class="bi bi-archive"></i>
+      <span class="sidebar-label">Outputs</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/knowledge') %}active{% endif %}"
+      href="/knowledge"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Knowledge Base"
+    >
+      <i class="bi bi-book"></i>
+      <span class="sidebar-label">Knowledge Base</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/integrations') %}active{% endif %}"
+      href="/integrations"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Integrations"
+    >
+      <i class="bi bi-plug"></i>
+      <span class="sidebar-label">Integrations</span>
+    </a>
+
+    <div class="sidebar-group-label">TEAM</div>
+    <a
+      class="sidebar-link {% if path.startswith('/team') %}active{% endif %}"
+      href="/team"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Team Members"
+    >
+      <i class="bi bi-people"></i>
+      <span class="sidebar-label">Team Members</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/vault') %}active{% endif %}"
+      href="/vault"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Credentials Vault"
+    >
+      <i class="bi bi-shield-lock"></i>
+      <span class="sidebar-label">Credentials Vault</span>
+    </a>
+
+    <div class="sidebar-group-label">ANALYTICS</div>
+    <a
+      class="sidebar-link {% if path.startswith('/reports') %}active{% endif %}"
+      href="/reports"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Reports"
+    >
+      <i class="bi bi-bar-chart-line"></i>
+      <span class="sidebar-label">Reports</span>
+    </a>
+    <a
+      class="sidebar-link {% if path.startswith('/usage') %}active{% endif %}"
+      href="/usage"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+      title="Usage and Quota"
+    >
+      <i class="bi bi-speedometer"></i>
+      <span class="sidebar-label">Usage &amp; Quota</span>
+    </a>
+    {% if can_view_audit %}
+      <a
+        class="sidebar-link {% if path.startswith('/audit-log') %}active{% endif %}"
+        href="/audit-log"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Audit Log"
+      >
+        <i class="bi bi-list-check"></i>
+        <span class="sidebar-label">Audit Log</span>
+      </a>
+    {% endif %}
+  </nav>
+
+  {# ====== SIDEBAR FOOTER ====== #}
+  <div class="sidebar-footer-wrap">
+    {% if current_user.is_authenticated and g_org and quota_percent_value is defined %}
+      {% set quota_progress_class = 'bg-primary' %}
+      {% if quota_percent_value >= 95 %}
+        {% set quota_progress_class = 'bg-danger' %}
+      {% elif quota_percent_value >= 80 %}
+        {% set quota_progress_class = 'bg-warning' %}
+      {% endif %}
+
+      <div class="sidebar-usage-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="sidebar-usage-label sidebar-label">Tasks This Month</span>
+          <span class="sidebar-usage-percent sidebar-label">{{ quota_percent_value|round(0)|int }}%</span>
+        </div>
+        <div class="progress sidebar-usage-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ quota_percent_value|round(0)|int }}">
+          <div class="progress-bar {{ quota_progress_class }}" style="width: {{ quota_percent_value }}%"></div>
+        </div>
+        <div class="sidebar-usage-meta sidebar-label">
+          {% if quota_limit_value == -1 %}
+            {{ quota_used_value }} / Unlimited
+          {% else %}
+            {{ quota_used_value }} / {{ quota_limit_value }} tasks
+          {% endif %}
+        </div>
+        {% if quota_percent_value >= 80 and next_plan_value %}
+          <a class="sidebar-upgrade-link sidebar-label" href="/settings/billing">
+            Upgrade to {{ next_plan_value.name }} {{ next_plan_value.monthly_price_display }}
+          </a>
+        {% elif quota_percent_value >= 80 %}
+          <a class="sidebar-upgrade-link sidebar-label" href="/settings/billing">
+            Upgrade plan to avoid limits
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="sidebar-bottom-nav">
+      <a
+        class="sidebar-link {% if path.startswith('/notifications') %}active{% endif %}"
+        href="/notifications"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Notifications"
+      >
+        <i class="bi bi-bell"></i>
+        <span class="sidebar-label">Notifications</span>
+        {% if unread_count_value and unread_count_value > 0 %}
+          <span class="badge rounded-pill bg-danger ms-auto sidebar-label">{{ unread_count_value }}</span>
+        {% endif %}
+      </a>
+      <a
+        class="sidebar-link {% if path.startswith('/settings') %}active{% endif %}"
+        href="/settings/account"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Settings"
+      >
+        <i class="bi bi-gear"></i>
+        <span class="sidebar-label">Settings</span>
+      </a>
+      <a
+        class="sidebar-link {% if path.startswith('/help') %}active{% endif %}"
+        href="/help"
+        data-bs-toggle="tooltip"
+        data-bs-placement="right"
+        title="Help"
+      >
+        <i class="bi bi-question-circle"></i>
+        <span class="sidebar-label">Help</span>
+      </a>
+    </div>
+  </div>
+</aside>

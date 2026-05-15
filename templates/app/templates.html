@@ -1,0 +1,441 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, pagination_controls %}
+
+{% block title %}Template Marketplace - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .featured-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+  }
+
+  .featured-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .featured-item {
+    white-space: normal;
+  }
+
+  .template-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .template-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .template-name-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.8rem;
+  }
+
+  .template-description-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 4rem;
+  }
+
+  .template-filter-pill {
+    border: 1px solid var(--border-color);
+    background: #f1f5f9;
+    color: var(--text-primary);
+  }
+
+  .template-filter-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Templates</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="mb-4">
+  <h2 class="fw-bold mb-1">
+    Template Marketplace
+    <span class="badge text-bg-light border ms-2">{{ template_pagination.total }}</span>
+  </h2>
+  <p class="text-muted mb-0">Pre-built automation workflows. One click to use.</p>
+</div>
+
+{# ====== FEATURED SECTION ====== #}
+{% if featured_templates %}
+  <div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h5 class="mb-0"><i class="bi bi-star-fill text-warning me-1"></i>Featured Templates</h5>
+    </div>
+
+    <div class="d-none d-lg-block">
+      <div class="row row-cols-1 row-cols-lg-3 g-3">
+        {% for template in featured_templates %}
+          {% set steps = template.steps_json if template.steps_json is iterable else [] %}
+          <div class="col">
+            <div class="card template-card h-100 border-0" style="box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); border-top: 4px solid #f59e0b !important;">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="badge text-bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Featured</span>
+                  <span class="badge text-bg-light border text-capitalize">{{ template.difficulty }}</span>
+                </div>
+                <h6 class="fw-bold template-name-clamp">{{ template.name }}</h6>
+                <p class="small text-muted template-description-clamp">{{ template.description or 'No description provided.' }}</p>
+                <div class="small text-muted mb-3">{{ steps|length }} steps</div>
+                <a href="/templates/{{ template.id }}" class="btn btn-sm btn-primary">View Template -></a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="featured-scroll d-lg-none d-flex gap-2">
+      {% for template in featured_templates %}
+        {% set steps = template.steps_json if template.steps_json is iterable else [] %}
+        <div class="featured-item" style="min-width: 280px; max-width: 280px;">
+          <div class="card template-card h-100 border-0" style="box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); border-top: 4px solid #f59e0b !important;">
+            <div class="card-body">
+              <span class="badge text-bg-warning text-dark mb-2"><i class="bi bi-star-fill me-1"></i>Featured</span>
+              <h6 class="fw-bold template-name-clamp">{{ template.name }}</h6>
+              <p class="small text-muted template-description-clamp">{{ template.description or 'No description provided.' }}</p>
+              <div class="small text-muted mb-2">{{ steps|length }} steps</div>
+              <a href="/templates/{{ template.id }}" class="btn btn-sm btn-primary">View Template -></a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{# ====== FILTER BAR ====== #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-lg-4">
+        <label for="template-search" class="form-label small text-muted mb-1">Search</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input id="template-search" type="text" class="form-control" placeholder="Search templates..." value="{{ filter_search }}">
+        </div>
+      </div>
+
+      <div class="col-lg-3">
+        <label for="difficulty-filter" class="form-label small text-muted mb-1">Difficulty</label>
+        <select id="difficulty-filter" class="form-select">
+          <option value="all" {% if not filter_difficulty %}selected{% endif %}>All</option>
+          <option value="beginner" {% if filter_difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+          <option value="intermediate" {% if filter_difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+          <option value="advanced" {% if filter_difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+        </select>
+      </div>
+
+      <div class="col-lg-3">
+        <label for="template-sort" class="form-label small text-muted mb-1">Sort</label>
+        <select id="template-sort" class="form-select">
+          <option value="most_used" {% if filter_sort == 'most_used' %}selected{% endif %}>Most Used</option>
+          <option value="newest" {% if filter_sort == 'newest' %}selected{% endif %}>Newest</option>
+          <option value="featured" {% if filter_sort == 'featured' %}selected{% endif %}>Featured First</option>
+          <option value="alphabetical" {% if filter_sort == 'alphabetical' %}selected{% endif %}>Alphabetical</option>
+        </select>
+      </div>
+
+      <div class="col-lg-2 text-lg-end small text-muted" id="template-result-count">{{ templates|length }} templates</div>
+    </div>
+
+    <div class="mt-3 d-flex flex-wrap gap-1" id="category-pills">
+      <button type="button" class="btn btn-sm rounded-pill template-filter-pill {% if not filter_category %}active{% endif %}" data-category="all" data-selection="true">All <small class="ms-1">{{ template_pagination.total }}</small></button>
+      {% for category in all_categories %}
+        <button type="button" class="btn btn-sm rounded-pill template-filter-pill {% if filter_category == category %}active{% endif %}" data-category="{{ category }}" data-selection="true">{{ category|replace('_', ' ')|title }} <small class="ms-1">{{ category_counts.get(category, 0) }}</small></button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ====== TEMPLATE GRID ====== #}
+<div id="templates-grid-wrap">
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" id="templates-grid">
+    {% for template in templates %}
+      {% set steps = template.steps_json if template.steps_json is iterable else [] %}
+      {% set integrations = template.required_integrations if template.required_integrations is iterable else [] %}
+      <div class="col template-item"
+           data-template-id="{{ template.id }}"
+           data-category="{{ template.category|lower }}"
+           data-name="{{ template.name|lower }} {{ (template.description or '')|lower }}"
+           data-difficulty="{{ template.difficulty|lower }}"
+           data-usage="{{ template.usage_count or 0 }}"
+           data-created="{{ template.created_at.isoformat() if template.created_at else '' }}"
+           data-featured="{{ '1' if template.is_featured else '0' }}">
+        <div class="card template-card h-100">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+              <span class="badge text-bg-light border">{{ template.category|replace('_', ' ')|title }}</span>
+              <div class="d-flex gap-1">
+                <span class="badge text-bg-light border text-capitalize">{{ template.difficulty }}</span>
+                {% if template.is_featured %}
+                  <span class="badge text-bg-warning text-dark"><i class="bi bi-star-fill"></i></span>
+                {% endif %}
+              </div>
+            </div>
+
+            <h5 class="fw-bold template-name-clamp mb-2">{{ template.name }}</h5>
+            <p class="small text-muted template-description-clamp mb-2">{{ template.description or 'No description provided.' }}</p>
+
+            <div class="small mb-2">
+              <span class="fw-semibold">{{ steps|length }} steps</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              {% for step in steps[:3] %}
+                <span class="badge text-bg-light border">{{ (step.task_name or step.step_name or step.task_type or 'Step')[:18] }}</span>
+              {% endfor %}
+              {% if steps|length > 3 %}
+                <span class="badge text-bg-light border">+{{ steps|length - 3 }} more</span>
+              {% endif %}
+            </div>
+
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              {% if integrations %}
+                {% for item in integrations[:3] %}
+                  <span class="badge text-bg-light border">{{ item|string|replace('_', ' ')|title }}</span>
+                {% endfor %}
+                {% if integrations|length > 3 %}
+                  <span class="badge text-bg-light border">+{{ integrations|length - 3 }}</span>
+                {% endif %}
+              {% else %}
+                <span class="badge text-bg-success-subtle text-success border">No integrations required</span>
+              {% endif %}
+            </div>
+
+            <div class="mt-auto d-flex justify-content-between align-items-center">
+              <div class="small text-muted">
+                <i class="bi bi-people me-1"></i>{{ template.usage_count or 0 }} times used
+                {% if template.estimated_time_seconds %}
+                  <span class="ms-2 badge text-bg-light border">~{{ template.estimated_time_seconds|duration_display }}</span>
+                {% endif %}
+              </div>
+              <a href="/templates/{{ template.id }}" class="small text-decoration-none">View Details -></a>
+            </div>
+
+            <div class="mt-2 d-grid">
+              <button type="button" class="btn btn-outline-primary btn-sm use-template-btn" data-template-id="{{ template.id }}">Use Template</button>
+            </div>
+          </div>
+          <a href="/templates/{{ template.id }}" class="stretched-link" aria-label="Open {{ template.name }}"></a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {{ pagination_controls(template_pagination, 'templates_bp.templates_home') }}
+</div>
+
+<div id="templates-empty-state" class="d-none">
+  {{ empty_state('bi-grid-3x3-gap', 'No templates found', 'Try different filters or search terms') }}
+  <div class="text-center">
+    <button type="button" class="btn btn-outline-primary mt-2" id="clear-template-filters">Clear Filters</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function parseDateScore(value) {
+      if (!value) {
+        return 0;
+      }
+      var date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+
+    function applyTemplateSort() {
+      var sortSelect = document.getElementById('template-sort');
+      var grid = document.getElementById('templates-grid');
+      if (!sortSelect || !grid) {
+        return;
+      }
+
+      var mode = sortSelect.value || 'most_used';
+      var items = Array.from(grid.querySelectorAll('.template-item'));
+
+      items.sort(function (a, b) {
+        if (mode === 'alphabetical') {
+          return String(a.dataset.name || '').localeCompare(String(b.dataset.name || ''));
+        }
+        if (mode === 'newest') {
+          return parseDateScore(String(b.dataset.created || '')) - parseDateScore(String(a.dataset.created || ''));
+        }
+        if (mode === 'featured') {
+          var featuredDiff = Number(b.dataset.featured || 0) - Number(a.dataset.featured || 0);
+          if (featuredDiff !== 0) {
+            return featuredDiff;
+          }
+          return Number(b.dataset.usage || 0) - Number(a.dataset.usage || 0);
+        }
+        return Number(b.dataset.usage || 0) - Number(a.dataset.usage || 0);
+      });
+
+      items.forEach(function (item) {
+        grid.appendChild(item);
+      });
+    }
+
+    function activeCategory() {
+      var active = document.querySelector('.template-filter-pill.active');
+      return active ? String(active.dataset.category || 'all') : 'all';
+    }
+
+    function applyTemplateFilters() {
+      var searchInput = document.getElementById('template-search');
+      var difficultySelect = document.getElementById('difficulty-filter');
+      var query = String(searchInput ? searchInput.value : '').trim().toLowerCase();
+      var difficulty = String(difficultySelect ? difficultySelect.value : 'all').toLowerCase();
+      var category = activeCategory();
+
+      var visible = 0;
+      document.querySelectorAll('.template-item').forEach(function (item) {
+        var matchesName = String(item.dataset.name || '').indexOf(query) !== -1;
+        var matchesDifficulty = difficulty === 'all' || String(item.dataset.difficulty || '') === difficulty;
+        var matchesCategory = category === 'all' || String(item.dataset.category || '') === category;
+        var shouldShow = matchesName && matchesDifficulty && matchesCategory;
+        item.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) {
+          visible += 1;
+        }
+      });
+
+      var countLabel = document.getElementById('template-result-count');
+      if (countLabel) {
+        countLabel.textContent = visible + ' templates';
+      }
+
+      var emptyState = document.getElementById('templates-empty-state');
+      var gridWrap = document.getElementById('templates-grid-wrap');
+      if (emptyState && gridWrap) {
+        if (visible === 0) {
+          emptyState.classList.remove('d-none');
+          gridWrap.classList.add('d-none');
+        } else {
+          emptyState.classList.add('d-none');
+          gridWrap.classList.remove('d-none');
+        }
+      }
+    }
+
+    function attachUseTemplateHandlers() {
+      document.querySelectorAll('.use-template-btn').forEach(function (button) {
+        button.addEventListener('click', async function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+
+          var templateId = button.getAttribute('data-template-id');
+          if (!templateId) {
+            return;
+          }
+
+          button.disabled = true;
+          try {
+            var response = await fetch('/templates/' + encodeURIComponent(templateId) + '/use', {
+              method: 'POST',
+              headers: {
+                'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+              },
+              credentials: 'same-origin'
+            });
+            var data = await response.json();
+            if (data && data.success && data.data && data.data.redirect) {
+              window.location.href = data.data.redirect;
+              return;
+            }
+
+            if (window.showToast) {
+              window.showToast((data && data.message) || 'Could not use template', 'danger');
+            }
+          } catch (error) {
+            if (window.showToast) {
+              window.showToast('Could not use template', 'danger');
+            }
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var searchInput = document.getElementById('template-search');
+      var difficultySelect = document.getElementById('difficulty-filter');
+      var sortSelect = document.getElementById('template-sort');
+      var clearButton = document.getElementById('clear-template-filters');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', applyTemplateFilters);
+      }
+      if (difficultySelect) {
+        difficultySelect.addEventListener('change', applyTemplateFilters);
+      }
+      if (sortSelect) {
+        sortSelect.addEventListener('change', function () {
+          applyTemplateSort();
+          applyTemplateFilters();
+        });
+      }
+
+      document.querySelectorAll('.template-filter-pill').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          document.querySelectorAll('.template-filter-pill').forEach(function (item) {
+            item.classList.remove('active');
+          });
+          pill.classList.add('active');
+          applyTemplateFilters();
+        });
+      });
+
+      if (clearButton) {
+        clearButton.addEventListener('click', function () {
+          if (searchInput) {
+            searchInput.value = '';
+          }
+          if (difficultySelect) {
+            difficultySelect.value = 'all';
+          }
+          var allPill = document.querySelector('.template-filter-pill[data-category="all"]');
+          if (allPill) {
+            document.querySelectorAll('.template-filter-pill').forEach(function (item) {
+              item.classList.remove('active');
+            });
+            allPill.classList.add('active');
+          }
+          applyTemplateFilters();
+        });
+      }
+
+      applyTemplateSort();
+      applyTemplateFilters();
+      attachUseTemplateHandlers();
+    });
+  })();
+</script>
+{% endblock %}

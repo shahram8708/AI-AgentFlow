@@ -1,0 +1,407 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state %}
+
+{% block title %}Scheduled Tasks - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .schedule-type-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: #fff;
+  }
+
+  .schedule-type-card.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.16);
+    background: #eef2ff;
+  }
+
+  .day-pill-btn,
+  .month-day-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: #f8fafc;
+  }
+
+  .day-pill-btn.active,
+  .month-day-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
+  .countdown.badge {
+    font-weight: 500;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Schedules</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      Scheduled Tasks
+      <span class="badge text-bg-light border ms-2">{{ active_schedule_count }} active</span>
+    </h2>
+    <p class="text-muted mb-0">Automate recurring workflow runs with cron based schedules.</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#create-schedule-modal">
+    <i class="bi bi-plus-circle me-1"></i>Create Schedule
+  </button>
+</div>
+
+{# ====== INFO BANNER ====== #}
+{% if active_schedule_count == 0 %}
+  <div class="alert alert-primary alert-dismissible fade show" role="alert" id="no-schedule-info-banner">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        Scheduled tasks let you run workflows automatically on a recurring basis.
+        Set up your first schedule to automate recurring research, reports, or any workflow.
+      </div>
+      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#create-schedule-modal">Create Schedule</button>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+{% endif %}
+
+{# ====== SCHEDULES TABLE ====== #}
+{% if jobs %}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Workflow</th>
+            <th>Schedule</th>
+            <th>Next Run</th>
+            <th>Last Run</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+            {% set workflow = job.workflow %}
+            {% set step_count = workflow.steps_json|length if workflow and workflow.steps_json is iterable else 0 %}
+            <tr class="schedule-row"
+                data-job-id="{{ job.id }}"
+                data-job-name="{{ job.name }}"
+                data-cron="{{ job.cron_expression }}"
+                data-timezone="{{ job.timezone }}"
+                data-workflow-id="{{ job.workflow_id }}"
+                data-workflow-name="{{ workflow.name if workflow else 'Unknown Workflow' }}"
+                data-is-active="{{ '1' if job.is_active else '0' }}">
+              <td>
+                <div class="fw-semibold">{{ job.name }}</div>
+                <div class="small text-muted">{{ workflow.name if workflow else 'Unknown Workflow' }}</div>
+              </td>
+              <td>
+                {% if workflow %}
+                  <a href="/workflows/{{ workflow.id }}" class="text-decoration-none">{{ workflow.name }}</a>
+                  <div><span class="badge text-bg-light border">{{ step_count }} steps</span></div>
+                {% else %}
+                  <span class="text-muted">Missing workflow</span>
+                {% endif %}
+              </td>
+              <td>
+                <div>
+                  {{ job.cron_description }}
+                  <span class="ms-1 text-muted" data-bs-toggle="tooltip" title="{{ job.cron_expression }}">
+                    <i class="bi bi-info-circle"></i>
+                  </span>
+                </div>
+                <div class="small text-muted">{{ job.timezone }}</div>
+              </td>
+              <td>
+                {% if job.next_run_at %}
+                  <span class="countdown badge text-bg-light border" data-next-run="{{ job.next_run_at.isoformat() }}">calculating...</span>
+                  <div class="small text-muted mt-1">{{ job.next_run_at|to_ist }}</div>
+                {% else %}
+                  <span class="text-muted">Not scheduled</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if job.last_run_at %}
+                  <div>{{ job.last_run_at|timeago }}</div>
+                  <div class="small text-muted">
+                    <span class="me-1 {% if job.last_run_status == 'queued' or job.last_run_status == 'done' %}text-success{% elif job.last_run_status == 'failed' %}text-danger{% else %}text-secondary{% endif %}">&#9679;</span>
+                    {{ job.last_run_status or 'unknown' }}
+                  </div>
+                {% else %}
+                  <span class="text-muted">Never run</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input schedule-toggle" type="checkbox" role="switch" data-job-id="{{ job.id }}" data-toggle-loading="true" {% if job.is_active %}checked{% endif %}>
+                </div>
+              </td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-secondary edit-schedule-btn" data-job-id="{{ job.id }}" data-job-name="{{ job.name }}" data-cron="{{ job.cron_expression }}" data-timezone="{{ job.timezone }}" data-workflow-id="{{ job.workflow_id }}" data-is-active="{{ '1' if job.is_active else '0' }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger delete-schedule-btn" data-job-id="{{ job.id }}" data-loading-text="Deleting...">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% else %}
+  {{ empty_state('bi-calendar-event', 'No scheduled tasks yet', 'Create your first automated schedule to run workflows on a recurring basis', '', '') }}
+  <div class="text-center mt-2">
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#create-schedule-modal">Create Schedule</button>
+  </div>
+{% endif %}
+
+{# ====== CREATE SCHEDULE MODAL ====== #}
+<div class="modal fade" id="create-schedule-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Schedule</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="create-schedule-form" method="POST" action="/schedules" data-manual-loading="true">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          {# SECTION 1 BASIC INFO #}
+          <h6 class="fw-semibold mb-2">Basic Info</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label" for="schedule-name">Schedule Name</label>
+              <input id="schedule-name" name="name" class="form-control" required minlength="2" maxlength="255" placeholder="Morning report automation">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="workflow-id">Workflow</label>
+              <select id="workflow-id" name="workflow_id" class="form-select" required>
+                {% for value, label in schedule_form.workflow_id.choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          {# SECTION 2 FREQUENCY #}
+          <h6 class="fw-semibold mb-2">Schedule Frequency</h6>
+          <input type="hidden" name="schedule_type" id="schedule_type" value="daily">
+          <input type="hidden" name="cron_expression" id="cron_expression" value="0 9 * * *">
+
+          <div class="row g-2 mb-3" id="schedule-type-cards">
+            <div class="col-md-3">
+              <div class="schedule-type-card p-3 selected" data-type="daily" data-selection="true">
+                <div class="fw-semibold"><i class="bi bi-sun me-1"></i>Daily</div>
+                <div class="small text-muted">Run every day at a set time</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="schedule-type-card p-3" data-type="weekly" data-selection="true">
+                <div class="fw-semibold"><i class="bi bi-calendar-week me-1"></i>Weekly</div>
+                <div class="small text-muted">Run once or more per week</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="schedule-type-card p-3" data-type="monthly" data-selection="true">
+                <div class="fw-semibold"><i class="bi bi-calendar-month me-1"></i>Monthly</div>
+                <div class="small text-muted">Run once a month</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="schedule-type-card p-3" data-type="custom" data-selection="true">
+                <div class="fw-semibold"><i class="bi bi-code-slash me-1"></i>Custom</div>
+                <div class="small text-muted">Advanced cron expression</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="schedule-options-wrap border rounded p-3 mb-3">
+            <div class="schedule-daily-options">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label" for="daily-hour">Hour</label>
+                  <select id="daily-hour" class="form-select schedule-hour-input"></select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="daily-minute">Minute</label>
+                  <select id="daily-minute" class="form-select schedule-minute-input"></select>
+                </div>
+                <div class="col-md-6 small text-muted">At selected time every day.</div>
+              </div>
+            </div>
+
+            <div class="schedule-weekly-options d-none">
+              <div class="mb-2">Select days</div>
+              <div class="d-flex flex-wrap gap-1 mb-3" id="weekly-day-buttons">
+                <button type="button" class="btn btn-sm day-pill-btn active" data-day="1" data-selection="true">Mon</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="2" data-selection="true">Tue</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="3" data-selection="true">Wed</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="4" data-selection="true">Thu</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="5" data-selection="true">Fri</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="6" data-selection="true">Sat</button>
+                <button type="button" class="btn btn-sm day-pill-btn" data-day="0" data-selection="true">Sun</button>
+              </div>
+
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <label class="form-label" for="weekly-hour">Hour</label>
+                  <select id="weekly-hour" class="form-select schedule-hour-input"></select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="weekly-minute">Minute</label>
+                  <select id="weekly-minute" class="form-select schedule-minute-input"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="schedule-monthly-options d-none">
+              <div class="mb-2">Select day of month</div>
+              <div class="d-flex flex-wrap gap-1 mb-3" id="monthly-day-buttons">
+                {% for day in range(1, 29) %}
+                  <button type="button" class="btn btn-sm month-day-btn {% if day == 1 %}active{% endif %}" data-day="{{ day }}" data-selection="true">{{ day }}</button>
+                {% endfor %}
+              </div>
+
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <label class="form-label" for="monthly-hour">Hour</label>
+                  <select id="monthly-hour" class="form-select schedule-hour-input"></select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="monthly-minute">Minute</label>
+                  <select id="monthly-minute" class="form-select schedule-minute-input"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="schedule-custom-options d-none">
+              <label class="form-label" for="custom-cron-input">Cron Expression</label>
+              <input id="custom-cron-input" type="text" class="form-control" placeholder="*/30 * * * *">
+              <div class="form-text">
+                Use 5 field cron format.
+                <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer">Learn cron syntax -></a>
+              </div>
+              <div class="invalid-feedback d-block d-none" id="custom-cron-error"></div>
+            </div>
+          </div>
+
+          <div class="alert alert-light border mb-4">
+            <div class="small text-muted">This will run:</div>
+            <div class="fw-semibold" id="schedule-preview-text">Daily at 9:00 AM</div>
+          </div>
+
+          {# SECTION 3 SETTINGS #}
+          <h6 class="fw-semibold mb-2">Settings</h6>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label" for="schedule-timezone">Timezone</label>
+              <select id="schedule-timezone" name="timezone" class="form-select" required>
+                {% for value, label in schedule_form.timezone.choices %}
+                  <option value="{{ value }}" {% if value == 'Asia/Kolkata' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="notify-on-completion" name="notify_on_completion" checked>
+                <label class="form-check-label" for="notify-on-completion">Notify me when this runs</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer d-block">
+          <div class="d-flex justify-content-end gap-2 mb-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Schedule</button>
+          </div>
+          <div class="small text-muted">Next run will be: <span id="next-run-preview">Calculated on save</span></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== EDIT SCHEDULE MODAL ====== #}
+<div class="modal fade" id="edit-schedule-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Schedule</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="edit-schedule-form">
+        <div class="modal-body">
+          <input type="hidden" id="edit-schedule-id">
+
+          <div class="mb-3">
+            <label class="form-label" for="edit-schedule-name">Schedule Name</label>
+            <input type="text" id="edit-schedule-name" class="form-control" required minlength="2" maxlength="255">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="edit-workflow-id">Workflow</label>
+            <select id="edit-workflow-id" class="form-select" disabled>
+              {% for value, label in schedule_form.workflow_id.choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="edit-cron-expression">Cron Expression</label>
+            <input type="text" id="edit-cron-expression" class="form-control" required>
+            <div class="form-text">Use 5 field cron format minute hour day month day_of_week.</div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label" for="edit-timezone">Timezone</label>
+              <select id="edit-timezone" class="form-select">
+                {% for value, label in schedule_form.timezone.choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="edit-is-active">
+                <label class="form-check-label" for="edit-is-active">Active</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="edit-notify-on-completion" checked>
+            <label class="form-check-label" for="edit-notify-on-completion">Notify me when this runs</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/schedules.js') }}"></script>
+{% endblock %}

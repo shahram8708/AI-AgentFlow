@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}About{% endblock %}
+
+{% block extra_css %}
+<style>
+  .about-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 4rem;
+  }
+
+  .timeline-item {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .timeline-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.3rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+
+  .timeline-item::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1rem;
+    width: 2px;
+    height: calc(100% + 0.6rem);
+    background: var(--border-color);
+  }
+
+  .timeline-item:last-child::after {
+    display: none;
+  }
+
+  .team-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--bg-card);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== MISSION HERO ==================== #}
+  <section class="about-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-3">We believe AI should multiply human potential, not replace it.</h1>
+      <p class="lead text-white-50 mb-3">AgentFlow was built to help teams automate repetitive execution so people can focus on creativity, judgment, and decision making.</p>
+      <span class="badge rounded-pill text-bg-light text-dark px-3 py-2">Founded in 2023</span>
+    </div>
+  </section>
+
+  {# ==================== OUR STORY ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4 align-items-start">
+        <div class="col-lg-7">
+          <h2 class="fw-bold mb-3">Our Story</h2>
+          <p class="text-muted">AgentFlow started with a simple observation: high performing teams were spending too much time on repetitive process work that could be systemized. Research compilation, reporting, content workflows, and back office operations were slowing down growth even in ambitious organizations.</p>
+          <p class="text-muted">We built AgentFlow to make AI execution dependable in real business environments. Instead of one off prompts, we focused on repeatable workflows, clear output structures, and role based control. Our goal has always been practical automation that teams can trust every day.</p>
+          <p class="text-muted mb-0">Today, thousands of teams use AgentFlow to automate cross functional work across finance, healthcare, legal, education, commerce, and technology. We are still early, and our mission remains the same: help people do higher value work by removing process friction.</p>
+        </div>
+        <div class="col-lg-5">
+          <div class="card">
+            <div class="card-body p-4">
+              <h3 class="h5 fw-bold mb-3">Company Timeline</h3>
+              {% for milestone in timeline %}
+                <div class="timeline-item">
+                  <div class="small text-muted">{{ milestone.year }}</div>
+                  <div class="fw-semibold">{{ milestone.title }}</div>
+                  <div class="small text-muted">{{ milestone.detail }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== TEAM SECTION ==================== #}
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold">The Team Behind AgentFlow</h2>
+      </div>
+      <div class="row g-4">
+        {% for member in team_members %}
+          <div class="col-lg-4 col-md-6">
+            <article class="card h-100 hover-lift">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <span class="team-avatar">{{ member.initials }}</span>
+                  <a href="#" class="text-decoration-none" aria-label="LinkedIn profile"><i class="bi bi-linkedin fs-5"></i></a>
+                </div>
+                <h3 class="h6 fw-bold mb-1">{{ member.name }}</h3>
+                <div class="small text-muted mb-2">{{ member.title }}</div>
+                <p class="small text-muted mb-0">{{ member.bio }}</p>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== VALUES SECTION ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold">What we stand for</h2>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body p-4">
+              <div class="mb-2" style="color: var(--primary);"><i class="bi bi-people fs-4"></i></div>
+              <h3 class="h6 fw-bold">AI-Augmented, Not AI-Replaced</h3>
+              <p class="small text-muted mb-0">We design workflows that elevate human decision making. Automation handles repetition while people stay in control of outcomes.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body p-4">
+              <div class="mb-2" style="color: var(--accent);"><i class="bi bi-magic fs-4"></i></div>
+              <h3 class="h6 fw-bold">Zero Technical Barrier</h3>
+              <p class="small text-muted mb-0">Great automation should be accessible to non technical teams. We focus on plain language workflows with enterprise grade reliability.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body p-4">
+              <div class="mb-2" style="color: var(--success);"><i class="bi bi-shield-lock fs-4"></i></div>
+              <h3 class="h6 fw-bold">Enterprise Security from Day One</h3>
+              <p class="small text-muted mb-0">Security and governance are built into every workflow. We support role based controls, traceability, and secure deployment standards.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== BACKERS SECTION ==================== #}
+  <section class="py-4 bg-white border-top border-bottom">
+    <div class="container text-center">
+      <h3 class="h6 text-uppercase small fw-bold text-muted mb-3">Backed by</h3>
+      <div class="d-flex flex-wrap justify-content-center gap-3 text-muted fw-semibold">
+        {% for backer in backers %}
+          <span>{{ backer }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== CTA ==================== #}
+  <section class="py-5">
+    <div class="container text-center">
+      <h2 class="fw-bold mb-2">Want to join us? We're hiring.</h2>
+      <p class="text-muted mb-3">We are building the future of AI powered work and would love to meet driven builders.</p>
+      <a href="{{ url_for('public.contact') }}" class="btn btn-primary btn-lg">Get in touch</a>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}

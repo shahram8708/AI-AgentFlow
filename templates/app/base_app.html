@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from 'partials/macros.html' import flash_messages %}
+
+{% block navbar %}
+  {# Logged in app shell does not use public navbar #}
+{% endblock %}
+
+{% block layout %}
+  {% include 'partials/sidebar.html' %}
+  {% include 'partials/mobile_nav.html' %}
+
+  <div class="app-layout">
+    {% set topbar_breadcrumb = self.breadcrumb() %}
+    {% include 'partials/topbar.html' %}
+
+    <main class="app-main-content" id="main-content">
+      <div class="container-fluid px-4 py-4">
+        {% if session.get('admin_impersonating_user_id') %}
+          <div class="alert alert-warning border-warning-subtle d-flex align-items-center justify-content-between sticky-top" style="z-index: 1020;">
+            <div>
+              <strong>Impersonation Active:</strong>
+              You are impersonating {{ current_user.get_full_name() }}.
+            </div>
+            <form method="post" action="/admin/return-impersonation" class="mb-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-dark">Return to Admin</button>
+            </form>
+          </div>
+        {% endif %}
+        {{ flash_messages() }}
+        {% block app_content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+{% endblock %}
+
+{% block breadcrumb %}
+  <div class="breadcrumb-wrap">
+    <span class="small text-muted">Dashboard</span>
+  </div>
+{% endblock %}

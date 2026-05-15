@@ -1,0 +1,281 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state %}
+
+{% block title %}{{ project.name }} - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .project-header-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.2rem;
+  }
+
+  .project-stat-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: #fff;
+    padding: 0.9rem;
+  }
+
+  .danger-zone {
+    border: 1px solid #fecaca;
+    border-radius: var(--border-radius);
+    background: #fff5f5;
+    padding: 1rem;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/projects" class="text-decoration-none">Projects</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ project.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="project-header-icon" style="background: {{ project.color or '#1a56db' }};"><i class="bi {{ project.icon or 'bi-folder' }}"></i></span>
+      <div>
+        <div class="d-flex align-items-center gap-2">
+          <h2 class="fw-bold mb-0">{{ project.name }}</h2>
+          {% if project.is_archived %}<span class="badge text-bg-secondary">Archived</span>{% endif %}
+          <span class="badge text-bg-light border">{{ stats.tasks }} tasks</span>
+        </div>
+        <p class="text-muted mb-0" id="project-description" data-project-id="{{ project.id }}" data-description="{{ project.description or '' }}">{{ project.description or 'Click to add a project description.' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="/projects/{{ project.id }}?tab=settings" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="project-archive-toggle" data-project-id="{{ project.id }}">{{ 'Restore' if project.is_archived else 'Archive' }}</button>
+    <div class="dropdown">
+      <button class="btn btn-outline-dark btn-sm" data-bs-toggle="dropdown" type="button"><i class="bi bi-three-dots"></i></button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><button class="dropdown-item project-duplicate-btn" type="button" data-project-id="{{ project.id }}">Duplicate</button></li>
+        <li><button class="dropdown-item text-danger project-delete-btn" type="button" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-confirm="Delete this project? This action cannot be undone.">Delete</button></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# ====== STATS ====== #}
+<div class="row g-2 mb-3">
+  <div class="col-md-3">
+    <div class="project-stat-card h-100">
+      <div class="small text-muted">Tasks</div>
+      <div class="h4 mb-0">{{ stats.tasks }}</div>
+      <div class="small text-muted">{{ stats.completed_today }} completed today</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="project-stat-card h-100">
+      <div class="small text-muted">Workflows</div>
+      <div class="h4 mb-0">{{ stats.workflows }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="project-stat-card h-100">
+      <div class="small text-muted">Outputs</div>
+      <div class="h4 mb-0">{{ stats.outputs }}</div>
+      <div class="small text-muted">{{ (stats.output_storage_bytes / 1024)|round(1) }} KB stored</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="project-stat-card h-100">
+      <div class="small text-muted">Knowledge</div>
+      <div class="h4 mb-0">{{ stats.knowledge }}</div>
+      <div class="small text-muted">Last activity {{ stats.last_activity | timeago if stats.last_activity else 'Never' }}</div>
+    </div>
+  </div>
+</div>
+
+{# ====== TABS ====== #}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link {% if tab == 'tasks' %}active{% endif %}" href="/projects/{{ project.id }}?tab=tasks"><i class="bi bi-lightning-charge"></i> Tasks</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'workflows' %}active{% endif %}" href="/projects/{{ project.id }}?tab=workflows"><i class="bi bi-diagram-3"></i> Workflows</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'outputs' %}active{% endif %}" href="/projects/{{ project.id }}?tab=outputs"><i class="bi bi-archive"></i> Outputs</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'knowledge' %}active{% endif %}" href="/projects/{{ project.id }}?tab=knowledge"><i class="bi bi-book"></i> Knowledge</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'settings' %}active{% endif %}" href="/projects/{{ project.id }}?tab=settings"><i class="bi bi-gear"></i> Settings</a></li>
+</ul>
+
+<div class="tab-content">
+  {# ====== TASKS TAB ====== #}
+  <div class="tab-pane fade {% if tab == 'tasks' %}show active{% endif %}" id="tab-tasks">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Recent Tasks</h5>
+      <a href="/tasks/new" class="btn btn-sm btn-outline-primary">Launch Task in Project -></a>
+    </div>
+
+    {% if tasks %}
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in tasks %}
+                <tr>
+                  <td>{{ item.task_name or 'Untitled task' }}</td>
+                  <td>{{ item.task_type|replace('_', ' ')|title }}</td>
+                  <td><span class="badge text-bg-light border text-capitalize">{{ item.status }}</span></td>
+                  <td>{{ item.created_at | timeago }}</td>
+                  <td><a href="/tasks/{{ item.id }}/{{ 'result' if item.status == 'done' else 'monitor' }}" class="btn btn-sm btn-outline-primary">Open</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="mt-2"><a class="small text-decoration-none" href="/tasks?project_id={{ project.id }}">View all project tasks -></a></div>
+    {% else %}
+      {{ empty_state('bi-lightning-charge', 'No tasks in this project', 'Launch your first task in this project', '/tasks/new', 'Launch Task') }}
+    {% endif %}
+  </div>
+
+  {# ====== WORKFLOWS TAB ====== #}
+  <div class="tab-pane fade {% if tab == 'workflows' %}show active{% endif %}" id="tab-workflows">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Workflows</h5>
+      <a href="/workflows/new" class="btn btn-sm btn-outline-primary">Create Workflow in Project -></a>
+    </div>
+
+    {% if workflows %}
+      <div class="row g-3">
+        {% for item in workflows %}
+          <div class="col-md-6 col-xl-4">
+            <div class="card h-100 p-3">
+              <h6 class="fw-semibold mb-1">{{ item.name }}</h6>
+              <div class="small text-muted mb-2">{{ item.description or 'Workflow in this project.' }}</div>
+              <div class="small text-muted mb-2">{{ item.run_count }} runs</div>
+              <a href="/workflows/{{ item.id }}" class="btn btn-sm btn-outline-primary mt-auto">Open</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state('bi-diagram-3', 'No workflows in this project', 'Create a workflow to automate repeatable work', '/workflows/new', 'Create Workflow') }}
+    {% endif %}
+  </div>
+
+  {# ====== OUTPUTS TAB ====== #}
+  <div class="tab-pane fade {% if tab == 'outputs' %}show active{% endif %}" id="tab-outputs">
+    {% if outputs %}
+      <div class="row g-3">
+        {% for item in outputs %}
+          {% set task_name = item.task.task_name if item.task and item.task.task_name else 'Output' %}
+          <div class="col-md-6 col-xl-4">
+            <div class="card h-100 p-3">
+              <div class="small text-muted mb-1 text-uppercase">{{ item.output_type }}</div>
+              <h6 class="fw-semibold mb-1">{{ task_name }}</h6>
+              <div class="small text-muted mb-2">{{ item.created_at | timeago }}</div>
+              <div class="small text-muted mb-2">{{ item.content_text[:120] if item.content_text else 'File based output' }}{% if item.content_text and item.content_text|length > 120 %}...{% endif %}</div>
+              <a href="/outputs/{{ item.id }}" class="btn btn-sm btn-outline-primary mt-auto">Open</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="small text-muted mt-2">Storage used by project outputs: {{ (stats.output_storage_bytes / 1024)|round(1) }} KB</div>
+    {% else %}
+      {{ empty_state('bi-archive', 'No outputs in this project', 'Run project tasks to generate outputs', '/tasks/new', 'Launch Task') }}
+    {% endif %}
+  </div>
+
+  {# ====== KNOWLEDGE TAB ====== #}
+  <div class="tab-pane fade {% if tab == 'knowledge' %}show active{% endif %}" id="tab-knowledge">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Knowledge Entries</h5>
+      <a href="/knowledge?project_id={{ project.id }}" class="btn btn-sm btn-outline-primary">Add to Knowledge Base -></a>
+    </div>
+
+    {% if knowledge_entries %}
+      <div class="card">
+        <ul class="list-group list-group-flush">
+          {% for item in knowledge_entries %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">{{ item.title }}</div>
+                <div class="small text-muted text-uppercase">{{ item.source_type }} • {{ item.created_at | timeago }}</div>
+              </div>
+              <a href="/knowledge/{{ item.id }}?preview=1" class="btn btn-sm btn-outline-primary">Preview</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      {{ empty_state('bi-book', 'No knowledge entries for this project', 'Attach documents and notes to enrich project context', '/knowledge?project_id=' ~ project.id, 'Add Knowledge') }}
+    {% endif %}
+  </div>
+
+  {# ====== SETTINGS TAB ====== #}
+  <div class="tab-pane fade {% if tab == 'settings' %}show active{% endif %}" id="tab-settings">
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="fw-semibold mb-3">Project Settings</h5>
+        <form id="project-settings-form" data-project-id="{{ project.id }}">
+          <div class="mb-2">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" id="settings-project-name" value="{{ project.name }}" maxlength="255" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="settings-project-description" rows="4" maxlength="1000">{{ project.description or '' }}</textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Color</label>
+              <input type="text" class="form-control" id="settings-project-color" value="{{ project.color or '#1a56db' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Icon</label>
+              <select class="form-select" id="settings-project-icon">
+                {% for icon in ['bi-folder', 'bi-briefcase', 'bi-code-slash', 'bi-graph-up', 'bi-people', 'bi-lightning', 'bi-star', 'bi-heart', 'bi-globe', 'bi-building'] %}
+                  <option value="{{ icon }}" {% if (project.icon or 'bi-folder') == icon %}selected{% endif %}>{{ icon }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="danger-zone">
+      <h6 class="fw-semibold text-danger">Danger Zone</h6>
+      <p class="small mb-2">Archived projects are hidden from the main view but all data is preserved.</p>
+      <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="settings-archive-btn" data-project-id="{{ project.id }}">{{ 'Restore Project' if project.is_archived else 'Archive Project' }}</button>
+
+      <p class="small mb-2">This will permanently delete the project container. Tasks and workflows must be deleted separately first.</p>
+      <label class="form-label small">Type {{ project.name }} to confirm deletion</label>
+      <input type="text" class="form-control mb-2" id="delete-confirm-input" data-project-name="{{ project.name }}" placeholder="Type project name">
+      <button type="button" class="btn btn-danger" id="delete-project-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" disabled>Delete Project</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+{% endblock %}

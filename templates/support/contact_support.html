@@ -1,0 +1,220 @@
+{% extends "app/base_app.html" %}
+
+{% block title %}Support - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Support</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h4 class="mb-3">Submit a Support Request</h4>
+        <form method="post" action="/support" enctype="multipart/form-data" id="support-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label">Subject</label>
+            <input type="text" class="form-control" name="subject" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-block">Priority</label>
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="priority" id="priority-low" value="low" checked>
+                <label class="btn btn-outline-secondary w-100" for="priority-low"><i class="bi bi-flag"></i> Low</label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="priority" id="priority-medium" value="medium">
+                <label class="btn btn-outline-primary w-100" for="priority-medium"><i class="bi bi-flag"></i> Medium</label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="priority" id="priority-high" value="high">
+                <label class="btn btn-outline-warning w-100" for="priority-high"><i class="bi bi-flag"></i> High</label>
+              </div>
+              <div class="col-6 col-md-3">
+                <input type="radio" class="btn-check" name="priority" id="priority-urgent" value="urgent">
+                <label class="btn btn-outline-danger w-100" for="priority-urgent"><i class="bi bi-exclamation-triangle"></i> Urgent</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" name="description" id="support-description" rows="6" minlength="20" required></textarea>
+            <div class="small text-muted mt-1"><span id="support-char-count">0</span> characters</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Attachment (optional, max 10MB)</label>
+            <input type="file" class="form-control" name="attachment">
+          </div>
+
+          <button type="submit" class="btn btn-primary" data-loading-text="Submitting ticket...">Submit Ticket</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Your Recent Tickets</h5>
+        <div class="small text-muted">Open: {{ status_counts.get('open', 0) }} | In Progress: {{ status_counts.get('in_progress', 0) }} | Resolved: {{ status_counts.get('resolved', 0) }}</div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle table-sm mb-0">
+          <thead class="table-light"><tr><th>Ticket</th><th>Subject</th><th>Priority</th><th>Status</th><th>Created</th><th>Updated</th><th></th></tr></thead>
+          <tbody>
+            {% for ticket in tickets %}
+              <tr>
+                <td>#{{ (ticket.id|string)[:8]|upper }}</td>
+                <td>{{ ticket.subject[:50] }}{% if ticket.subject|length > 50 %}...{% endif %}</td>
+                <td>
+                  <span class="badge {% if ticket.priority == 'urgent' %}text-bg-danger{% elif ticket.priority == 'high' %}text-bg-warning{% elif ticket.priority == 'medium' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{{ ticket.priority|title }}</span>
+                </td>
+                <td>
+                  <span class="badge {% if ticket.status == 'open' %}text-bg-primary{% elif ticket.status == 'in_progress' %}text-bg-warning{% elif ticket.status == 'resolved' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ ticket.status|replace('_',' ')|title }}</span>
+                </td>
+                <td>{{ ticket.created_at|to_ist }}</td>
+                <td>{{ ticket.updated_at|to_ist }}</td>
+                <td><button class="btn btn-sm btn-outline-secondary" type="button" onclick="viewTicket('{{ ticket.id }}')">View</button></td>
+              </tr>
+            {% else %}
+              <tr><td colspan="7" class="text-center text-muted py-4">No tickets yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="mb-2">Before Submitting</h5>
+        <ul class="small text-muted mb-0">
+          <li>Check the Help Center first.</li>
+          <li>Most questions are answered in docs and tutorials.</li>
+          <li>Include steps to reproduce for faster resolution.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="mb-2">Expected Response Time</h5>
+        <div class="small text-muted">Low: 48h</div>
+        <div class="small text-muted">Medium: 24h</div>
+        <div class="small text-muted">High: 8h</div>
+        <div class="small text-muted">Urgent: 2h</div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-2">Contact</h5>
+        <p class="small mb-1">support@agentflow.ai</p>
+        <p class="small text-muted mb-0">Mon to Fri, 10 AM to 7 PM IST</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="ticketModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="ticket-modal-title">Ticket Detail</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="ticket-modal-body">
+        <div class="text-muted">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const description = document.getElementById('support-description');
+    const counter = document.getElementById('support-char-count');
+    const form = document.getElementById('support-form');
+    if (description && counter) {
+      description.addEventListener('input', function () {
+        counter.textContent = String(description.value.length);
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (submitButton && window.setButtonLoading) {
+          window.setButtonLoading(submitButton, 'Submitting ticket...');
+        }
+        const data = new FormData(form);
+        fetch('/support', {
+          method: 'POST',
+          body: data,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+          }
+        }).then(r => r.json()).then(payload => {
+          if (payload.success) {
+            if (window.showToast) window.showToast('Support ticket submitted successfully', 'success');
+            setTimeout(() => window.location.reload(), 900);
+          } else if (window.showToast) {
+            window.showToast(payload.message || 'Unable to submit ticket', 'danger');
+          }
+        }).finally(() => {
+          if (submitButton && window.resetButton) {
+            window.resetButton(submitButton);
+          }
+        });
+      });
+    }
+
+    window.viewTicket = function (ticketId) {
+      const triggerButton = document.activeElement && document.activeElement.tagName === 'BUTTON'
+        ? document.activeElement
+        : null;
+      if (triggerButton && window.setButtonLoading) {
+        window.setButtonLoading(triggerButton, 'Loading...');
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      fetch('/api/support/tickets/' + ticketId, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(payload => {
+          if (!payload.success) return;
+          const ticket = payload.data;
+          document.getElementById('ticket-modal-title').textContent = '#' + ticket.id.slice(0, 8).toUpperCase() + ' - ' + ticket.subject;
+          document.getElementById('ticket-modal-body').innerHTML =
+            '<p><strong>Status:</strong> ' + ticket.status + '</p>' +
+            '<p><strong>Priority:</strong> ' + ticket.priority + '</p>' +
+            '<p><strong>Description:</strong></p><p>' + escapeHtml(ticket.description) + '</p>';
+          bootstrap.Modal.getOrCreateInstance(document.getElementById('ticketModal')).show();
+        }).finally(() => {
+          if (triggerButton && window.resetButton) {
+            window.resetButton(triggerButton);
+          }
+        });
+    };
+  })();
+</script>
+{% endblock %}

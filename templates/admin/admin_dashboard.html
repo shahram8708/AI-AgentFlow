@@ -1,0 +1,134 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Admin Dashboard - AgentFlow{% endblock %}
+
+{% block admin_content %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">Total Users</div>
+        <div class="display-6 fw-bold">{{ total_users }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">New Users</div>
+        <div class="fw-semibold mt-2">Today: {{ new_users_today }}</div>
+        <div class="fw-semibold">This Week: {{ new_users_this_week }}</div>
+        <div class="fw-semibold">This Month: {{ new_users_this_month }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">DAU / MAU</div>
+        <div class="display-6 fw-bold">{{ dau }} / {{ mau }}</div>
+        <div class="small text-muted">Ratio: {{ ((dau / mau) * 100)|round(1) if mau else 0 }}%</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted">Admin Accounts</div>
+        <div class="display-6 fw-bold">{{ admin_count }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Tasks Today</div><div class="display-6 fw-bold">{{ tasks_today }}</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Tasks This Month</div><div class="display-6 fw-bold">{{ tasks_this_month }}</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">All Time Tasks</div><div class="display-6 fw-bold">{{ total_tasks_all_time }}</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Running Tasks</div><div class="display-6 fw-bold">{{ running_tasks }}</div></div></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Current MRR</div><div class="display-6 fw-bold">₹{{ (mrr_paise / 100)|round(0)|int|format_inr }}</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Active Subscriptions</div><div class="display-6 fw-bold">{{ active_subscriptions }}</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Error Rate 24h</div><div class="display-6 fw-bold {% if error_rate_24h > 8 %}text-danger{% endif %}">{{ error_rate_24h }}%</div></div></div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Avg Success Rate 30d</div><div class="display-6 fw-bold">{{ avg_task_success_rate }}%</div></div></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Plan Distribution</h5></div>
+      <div class="card-body"><canvas id="admin-plan-chart" height="250"></canvas></div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Recent Signups</h5></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Name</th><th>Email</th><th>Organization</th><th>Plan</th><th>Created</th></tr></thead>
+          <tbody>
+            {% for row in recent_signups %}
+              <tr>
+                <td>{{ row.user.get_full_name() }}</td>
+                <td>{{ row.user.email }}</td>
+                <td>{{ row.organization.name if row.organization else '-' }}</td>
+                <td>{{ row.plan.name if row.plan else '-' }}</td>
+                <td>{{ row.user.created_at|to_ist }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="text-center text-muted">No signups yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Recent Tasks</h5></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Organization</th><th>Task Type</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>
+            {% for task in recent_tasks %}
+              <tr>
+                <td>{{ task.organization.name if task.organization else '-' }}</td>
+                <td>{{ task.task_type|replace('_', ' ')|title }}</td>
+                <td><span class="badge {% if task.status == 'done' %}text-bg-success{% elif task.status == 'failed' %}text-bg-danger{% elif task.status == 'running' %}text-bg-primary{% else %}text-bg-secondary{% endif %}">{{ task.status|title }}</span></td>
+                <td>{{ task.created_at|to_ist }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="text-center text-muted">No recent tasks.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="admin-plan-data" data-distribution='{{ plan_distribution|tojson }}'></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state %}
+
+{% block title %}Projects - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .project-card {
+    border: 1px solid var(--border-color);
+    border-left-width: 5px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+  }
+
+  .project-icon-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+
+  .project-stat-chip {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    background: #f8fbff;
+    font-weight: 600;
+  }
+
+  .project-color-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+  }
+
+  .project-color-swatch.selected {
+    border-color: #111827;
+  }
+
+  .project-icon-option {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    font-size: 1.05rem;
+  }
+
+  .project-icon-option.selected {
+    border-color: var(--primary);
+    background: #eff6ff;
+  }
+
+  .archived-project-card {
+    opacity: 0.78;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Projects</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h2 class="fw-bold mb-0">Projects</h2>
+      <span class="badge bg-primary-subtle text-primary">{{ active_projects|length }}</span>
+    </div>
+    <p class="text-muted mb-0">Organize your tasks, workflows, and outputs into projects</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#create-project-modal">New Project</button>
+</div>
+
+{% if projects %}
+  {# ====== ACTIVE PROJECTS ====== #}
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-3" id="active-projects-grid">
+    {% for project in active_projects %}
+      <div class="col project-card-col" id="project-card-{{ project.id }}" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-archived="{{ 'true' if project.is_archived else 'false' }}">
+        <div class="project-card h-100 p-3" style="border-left-color: {{ project.color or '#1a56db' }};">
+          <div class="d-flex align-items-start justify-content-between mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="project-icon-circle" style="background: {{ project.color or '#1a56db' }};"><i class="bi {{ project.icon or 'bi-folder' }}"></i></span>
+              <div>
+                <h5 class="fw-bold mb-0">{{ project.name }}</h5>
+              </div>
+            </div>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" type="button"><i class="bi bi-three-dots"></i></button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="/projects/{{ project.id }}?tab=settings">Edit</a></li>
+                <li><button type="button" class="dropdown-item project-archive-btn" data-project-id="{{ project.id }}">Archive</button></li>
+                <li><button type="button" class="dropdown-item project-duplicate-btn" data-project-id="{{ project.id }}">Duplicate</button></li>
+                <li><button type="button" class="dropdown-item text-danger project-delete-btn" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-confirm="Delete this project?">Delete</button></li>
+              </ul>
+            </div>
+          </div>
+
+          <p class="text-muted small mb-3">{{ (project.description or 'No description provided.')|truncate(110) }}</p>
+
+          {% set pid = project.id|string %}
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="project-stat-chip">{{ counts.tasks.get(pid, 0) }} tasks</span>
+            <span class="project-stat-chip">{{ counts.workflows.get(pid, 0) }} workflows</span>
+            <span class="project-stat-chip">{{ counts.outputs.get(pid, 0) }} outputs</span>
+            <span class="project-stat-chip">{{ counts.knowledge.get(pid, 0) }} notes</span>
+          </div>
+
+          <div class="small text-muted mb-3">Last activity: {{ project.updated_at | timeago }}</div>
+
+          <div class="mt-auto">
+            <a href="/projects/{{ project.id }}" class="btn btn-outline-primary btn-sm w-100">Open Project -></a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# ====== ARCHIVED SECTION ====== #}
+  <div class="accordion" id="archived-projects-accordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="archived-heading">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#archived-collapse" aria-expanded="false" aria-controls="archived-collapse">
+          Archived Projects ({{ archived_projects|length }})
+        </button>
+      </h2>
+      <div id="archived-collapse" class="accordion-collapse collapse" aria-labelledby="archived-heading" data-bs-parent="#archived-projects-accordion">
+        <div class="accordion-body">
+          {% if archived_projects %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" id="archived-projects-grid">
+              {% for project in archived_projects %}
+                {% set pid = project.id|string %}
+                <div class="col project-card-col" id="project-card-{{ project.id }}" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-archived="true">
+                  <div class="project-card archived-project-card h-100 p-3" style="border-left-color: {{ project.color or '#1a56db' }};">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="project-icon-circle" style="background: {{ project.color or '#1a56db' }};"><i class="bi {{ project.icon or 'bi-folder' }}"></i></span>
+                        <h6 class="fw-semibold mb-0">{{ project.name }}</h6>
+                      </div>
+                      <span class="badge text-bg-secondary">Archived</span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                      <span class="project-stat-chip">{{ counts.tasks.get(pid, 0) }} tasks</span>
+                      <span class="project-stat-chip">{{ counts.workflows.get(pid, 0) }} workflows</span>
+                      <span class="project-stat-chip">{{ counts.outputs.get(pid, 0) }} outputs</span>
+                      <span class="project-stat-chip">{{ counts.knowledge.get(pid, 0) }} notes</span>
+                    </div>
+
+                    <button type="button" class="btn btn-sm btn-outline-success project-archive-btn" data-project-id="{{ project.id }}">Restore</button>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted small">No archived projects.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}
+  {{ empty_state('bi-folder2-open', 'No projects yet', 'Projects help you organize related tasks, workflows, and outputs', '#', 'Create your first project') }}
+{% endif %}
+
+{# ====== CREATE PROJECT MODAL ====== #}
+<div class="modal fade" id="create-project-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form id="create-project-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Create New Project</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Name</label>
+            <input type="text" id="project-name" class="form-control" required maxlength="255">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Description</label>
+            <textarea id="project-description-input" class="form-control" rows="3" maxlength="1000"></textarea>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Color</label>
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-2" id="project-color-swatches">
+              {% set palette = ['#1a56db', '#7c3aed', '#16a34a', '#f59e0b', '#dc2626', '#0f766e', '#db2777', '#1f2937'] %}
+              {% for color in palette %}
+                <span class="project-color-swatch {% if loop.first %}selected{% endif %}" data-color="{{ color }}" data-selection="true" style="background: {{ color }};"></span>
+              {% endfor %}
+              <span id="project-color-preview" class="project-color-swatch" data-selection="true" style="background:#1a56db;"></span>
+            </div>
+            <input type="hidden" id="project-color" value="#1a56db">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Icon</label>
+            <div class="row row-cols-5 g-2" id="project-icon-options">
+              {% for icon in ['bi-folder', 'bi-briefcase', 'bi-code-slash', 'bi-graph-up', 'bi-people', 'bi-lightning', 'bi-star', 'bi-heart', 'bi-globe', 'bi-building'] %}
+                <div class="col">
+                  <div class="project-icon-option {% if loop.first %}selected{% endif %}" data-icon="{{ icon }}" data-selection="true"><i class="bi {{ icon }}"></i></div>
+                </div>
+              {% endfor %}
+            </div>
+            <input type="hidden" id="project-icon" value="bi-folder">
+          </div>
+
+          <div class="small text-danger" id="project-create-error" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+{% endblock %}

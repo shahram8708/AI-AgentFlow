@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+
+{% block title %}Pricing{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pricing-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 3.5rem;
+  }
+
+  .plan-col {
+    min-width: 220px;
+    vertical-align: top;
+  }
+
+  .plan-card-shell {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    background: var(--bg-card);
+    height: 100%;
+  }
+
+  .plan-card-shell.popular {
+    border: 2px solid var(--primary);
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-4px);
+  }
+
+  .comparison-row-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  .pricing-faq .accordion-button:not(.collapsed) {
+    color: var(--primary);
+    background: rgba(26, 86, 219, 0.08);
+  }
+
+  .guarantee-banner {
+    background: rgba(5, 150, 105, 0.1);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+    color: var(--success);
+    border-radius: var(--border-radius);
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {% set free_plan = plans_by_slug.get('free') %}
+  {% set starter_plan = plans_by_slug.get('starter') %}
+  {% set pro_plan = plans_by_slug.get('pro') %}
+  {% set team_plan = plans_by_slug.get('team') %}
+  {% set enterprise_plan = plans_by_slug.get('enterprise') %}
+
+  {# ==================== HERO ==================== #}
+  <section class="pricing-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-3">Pricing built for every stage</h1>
+      <p class="lead text-white-50 mb-3">All plans are billed in Indian Rupees with Razorpay checkout support.</p>
+      <div class="btn-group" role="group" aria-label="Billing toggle" id="billing-toggle">
+        <button type="button" class="btn btn-light active" data-cycle="monthly" data-selection="true">Monthly</button>
+        <button type="button" class="btn btn-outline-light" data-cycle="annual" data-selection="true">Annual <span class="badge text-bg-success ms-1">Save 20%</span></button>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== PLAN COMPARISON TABLE ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th class="bg-light">Features</th>
+              <th class="plan-col">
+                <div class="plan-card-shell">
+                  <h3 class="h5 fw-bold">Free</h3>
+                  <p class="h4 mb-0 plan-price" data-monthly="{{ free_plan.price_monthly_inr if free_plan else 0 }}" data-annual="{{ free_plan.price_annual_inr if free_plan else 0 }}">₹0/month</p>
+                  <small class="text-muted plan-note">Best for trying AgentFlow</small>
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary w-100 mt-3">Get Started Free</a>
+                </div>
+              </th>
+              <th class="plan-col">
+                <div class="plan-card-shell">
+                  <h3 class="h5 fw-bold">Starter</h3>
+                  <p class="h4 mb-0 plan-price" data-monthly="{{ starter_plan.price_monthly_inr if starter_plan else 99900 }}" data-annual="{{ starter_plan.price_annual_inr if starter_plan else 999000 }}">₹999/month</p>
+                  <small class="text-muted plan-note">For solo operators and early teams</small>
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-primary w-100 mt-3" data-razorpay="true" data-plan-slug="starter" data-loading-text="Processing payment..." data-no-reset="true">Upgrade Now</a>
+                </div>
+              </th>
+              <th class="plan-col">
+                <div class="plan-card-shell popular">
+                  <span class="badge rounded-pill text-bg-primary mb-2">Most Popular</span>
+                  <h3 class="h5 fw-bold">Pro</h3>
+                  <p class="h4 mb-0 plan-price" data-monthly="{{ pro_plan.price_monthly_inr if pro_plan else 249900 }}" data-annual="{{ pro_plan.price_annual_inr if pro_plan else 2499000 }}">₹2,499/month</p>
+                  <small class="text-muted plan-note">For scaling teams and power users</small>
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-primary w-100 mt-3" data-razorpay="true" data-plan-slug="pro" data-loading-text="Processing payment..." data-no-reset="true">Upgrade Now</a>
+                </div>
+              </th>
+              <th class="plan-col">
+                <div class="plan-card-shell">
+                  <h3 class="h5 fw-bold">Team</h3>
+                  <p class="h4 mb-0 plan-price" data-monthly="{{ team_plan.price_monthly_inr if team_plan else 699900 }}" data-annual="{{ team_plan.price_annual_inr if team_plan else 6999000 }}">₹6,999/month</p>
+                  <small class="text-muted plan-note">For cross functional execution teams</small>
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-primary w-100 mt-3" data-razorpay="true" data-plan-slug="team" data-loading-text="Processing payment..." data-no-reset="true">Upgrade Now</a>
+                </div>
+              </th>
+              <th class="plan-col">
+                <div class="plan-card-shell">
+                  <h3 class="h5 fw-bold">Enterprise</h3>
+                  <p class="h4 mb-0">Custom</p>
+                  <small class="text-muted">For large scale and regulated organizations</small>
+                  <a href="#enterprise-inquiry" class="btn btn-outline-primary w-100 mt-3">Contact Sales</a>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="comparison-row-label">Monthly Task Quota</td>
+              <td>10</td><td>100</td><td>500</td><td>2,000</td><td>Unlimited</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Team Seats</td>
+              <td>1</td><td>3</td><td>10</td><td>50</td><td>Unlimited</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Output Retention</td>
+              <td>30 days</td><td>90 days</td><td>1 year</td><td>Unlimited</td><td>Unlimited</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Workflow Builder</td>
+              <td>✗</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Template Marketplace</td>
+              <td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">API Access</td>
+              <td>✗</td><td>✗</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Custom Integrations</td>
+              <td>✗</td><td>✗</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Priority Support</td>
+              <td>✗</td><td>Email</td><td>Email+Chat</td><td>Priority Email+Chat</td><td>Dedicated Manager</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">SLA Guarantee</td>
+              <td>✗</td><td>✗</td><td>99.9%</td><td>99.9%</td><td>99.99%</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Audit Log</td>
+              <td>✗</td><td>✗</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">SSO (SAML)</td>
+              <td>✗</td><td>✗</td><td>✗</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Custom Branding</td>
+              <td>✗</td><td>✗</td><td>✗</td><td>✓</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Dedicated Account Manager</td>
+              <td>✗</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">Data Residency Options</td>
+              <td>✗</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td>
+            </tr>
+            <tr>
+              <td class="comparison-row-label">GST Invoice</td>
+              <td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== ENTERPRISE CONTACT FORM ==================== #}
+  <section class="py-5 bg-white border-top" id="enterprise-inquiry">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-body p-4 p-lg-5">
+              <h2 class="h3 fw-bold mb-2">Need Enterprise? Let's talk.</h2>
+              <p class="text-muted mb-4">Tell us about your team and requirements. We will share a tailored rollout plan.</p>
+
+              <form method="post" action="{{ url_for('public.pricing') }}" class="needs-validation" novalidate>
+                {{ enterprise_form.hidden_tag() }}
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label" for="{{ enterprise_form.company_name.id }}">Company Name</label>
+                    {{ enterprise_form.company_name(class='form-control' + (' is-invalid' if enterprise_form.company_name.errors else ''), placeholder='Company Name') }}
+                    {% for error in enterprise_form.company_name.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="{{ enterprise_form.name.id }}">Name</label>
+                    {{ enterprise_form.name(class='form-control' + (' is-invalid' if enterprise_form.name.errors else ''), placeholder='Name') }}
+                    {% for error in enterprise_form.name.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="{{ enterprise_form.work_email.id }}">Work Email</label>
+                    {{ enterprise_form.work_email(class='form-control' + (' is-invalid' if enterprise_form.work_email.errors else ''), placeholder='name@company.com') }}
+                    {% for error in enterprise_form.work_email.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label" for="{{ enterprise_form.team_size.id }}">Team Size</label>
+                    {{ enterprise_form.team_size(class='form-select' + (' is-invalid' if enterprise_form.team_size.errors else '')) }}
+                    {% for error in enterprise_form.team_size.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="{{ enterprise_form.message.id }}">Message</label>
+                    {{ enterprise_form.message(class='form-control' + (' is-invalid' if enterprise_form.message.errors else ''), rows='5', placeholder='Share your requirements, security needs, and rollout goals') }}
+                    {% for error in enterprise_form.message.errors %}
+                      <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div class="mt-4">
+                  {{ enterprise_form.submit(class='btn btn-primary px-4') }}
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== FAQ ACCORDION ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-9">
+          <h2 class="h3 fw-bold mb-4 text-center">Pricing FAQs</h2>
+          <div class="accordion pricing-faq" id="pricingFaq">
+            {% for faq in pricing_faqs %}
+              <div class="accordion-item">
+                <h3 class="accordion-header" id="faq-heading-{{ loop.index }}">
+                  <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#faq-collapse-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="faq-collapse-{{ loop.index }}">
+                    {{ faq.question }}
+                  </button>
+                </h3>
+                <div id="faq-collapse-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="faq-heading-{{ loop.index }}" data-bs-parent="#pricingFaq">
+                  <div class="accordion-body text-muted">
+                    {{ faq.answer }}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="guarantee-banner p-3 mt-4 text-center fw-semibold">
+            7-day money-back guarantee on all paid plans. No questions asked.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var toggle = document.getElementById("billing-toggle");
+    var priceNodes = document.querySelectorAll(".plan-price");
+
+    function renderPrice(node, cycle) {
+      var monthly = Number(node.dataset.monthly || 0);
+      var annual = Number(node.dataset.annual || 0);
+
+      if (cycle === "annual") {
+        if (annual > 0) {
+          node.textContent = (window.formatINR ? window.formatINR(annual) : ("₹" + Math.floor(annual / 100).toLocaleString("en-IN"))) + "/year";
+        } else if (annual === 0) {
+          node.textContent = "₹0/year";
+        } else {
+          node.textContent = "Custom";
+        }
+      } else {
+        if (monthly > 0) {
+          node.textContent = (window.formatINR ? window.formatINR(monthly) : ("₹" + Math.floor(monthly / 100).toLocaleString("en-IN"))) + "/month";
+        } else if (monthly === 0) {
+          node.textContent = "₹0/month";
+        } else {
+          node.textContent = "Custom";
+        }
+      }
+    }
+
+    function setCycle(cycle) {
+      priceNodes.forEach(function (node) {
+        renderPrice(node, cycle);
+      });
+    }
+
+    if (toggle) {
+      toggle.querySelectorAll("button").forEach(function (button) {
+        button.addEventListener("click", function () {
+          toggle.querySelectorAll("button").forEach(function (btn) {
+            btn.classList.remove("active", "btn-light");
+            btn.classList.add("btn-outline-light");
+          });
+          button.classList.add("active", "btn-light");
+          button.classList.remove("btn-outline-light");
+          setCycle(button.dataset.cycle || "monthly");
+        });
+      });
+    }
+
+    setCycle("monthly");
+  })();
+</script>
+{% endblock %}

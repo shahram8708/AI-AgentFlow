@@ -1,0 +1,152 @@
+{% extends "app/base_app.html" %}
+{% from 'partials/macros.html' import pagination_controls %}
+
+{% block title %}Audit Log - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Audit Log</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+  <div>
+    <h2 class="h3 mb-1">Audit Log <span class="badge text-bg-light border">{{ total_filtered }}</span></h2>
+    <p class="text-muted mb-0">Audit log entries are immutable and retained for 7 years per compliance requirements.</p>
+  </div>
+  <a href="{{ url_for('audit.audit_log_home', user_id=selected_user_id, action=selected_action, search=selected_search, date_from=date_from, date_to=date_to, export='csv') }}" class="btn btn-outline-primary">Export CSV</a>
+</div>
+
+<form method="get" action="/audit-log" class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small">User</label>
+        <select name="user_id" class="form-select form-select-sm">
+          <option value="">All Users</option>
+          {% for user in users %}
+            <option value="{{ user.id }}" {% if selected_user_id == (user.id|string) %}selected{% endif %}>{{ user.get_full_name() }} ({{ user.email }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Action Type</label>
+        <select name="action" class="form-select form-select-sm">
+          <option value="">All</option>
+          {% for prefix in action_prefixes %}
+            <option value="{{ prefix }}" {% if selected_action == prefix %}selected{% endif %}>{{ prefix|replace('_',' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small">Search action</label>
+        <input type="text" name="search" value="{{ selected_search }}" placeholder="task.created" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-1 d-grid">
+        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3 small text-muted">
+      <span>Showing {{ total_filtered }} of {{ total_all }} entries</span>
+      <a href="/audit-log" class="text-decoration-none">Clear</a>
+    </div>
+  </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+  {% if entries %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light sticky-top" style="z-index: 2;">
+          <tr>
+            <th>Timestamp (IST)</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Resource</th>
+            <th>IP Address</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            {% set prefix = (entry.action.split('.')[0] if entry.action and '.' in entry.action else 'other') %}
+            {% set action_label = (entry.action.replace('.', ' ').replace('_', ' ')|title if entry.action else 'Unknown') %}
+            {% set badge_class = 'bg-secondary' %}
+            {% if prefix == 'task' %}{% set badge_class = 'bg-primary' %}{% endif %}
+            {% if prefix == 'user' %}{% set badge_class = 'bg-info text-dark' %}{% endif %}
+            {% if prefix == 'billing' %}{% set badge_class = 'bg-success' %}{% endif %}
+            {% if prefix == 'team' %}{% set badge_class = 'bg-purple' %}{% endif %}
+            {% if prefix == 'workflow' %}{% set badge_class = 'bg-teal' %}{% endif %}
+            {% if prefix == 'settings' %}{% set badge_class = 'bg-secondary' %}{% endif %}
+            {% if prefix == 'admin' %}{% set badge_class = 'bg-danger' %}{% endif %}
+            {% if prefix == 'vault' %}{% set badge_class = 'bg-dark' %}{% endif %}
+
+            <tr>
+              <td>
+                <span title="{{ entry.timestamp.isoformat() if entry.timestamp else '' }}">{{ entry.timestamp|to_ist }}</span>
+              </td>
+              <td>
+                {% if entry.user %}
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle text-white d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; background:#1a56db;">
+                      {{ (entry.user.first_name[:1] ~ entry.user.last_name[:1])|upper }}
+                    </div>
+                    <div>
+                      <div class="fw-semibold">{{ entry.user.get_full_name() }}</div>
+                      <div class="small text-muted">{{ entry.user.email }}</div>
+                    </div>
+                  </div>
+                {% else %}
+                  <span class="badge text-bg-secondary">System</span>
+                {% endif %}
+              </td>
+              <td><span class="badge {{ badge_class }}">{{ action_label }}</span></td>
+              <td>
+                {{ entry.resource_type or '-' }}
+                {% if entry.resource_id %}
+                  #<span title="{{ entry.resource_id }}">{{ entry.resource_id[:8] }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if current_user.is_admin %}
+                  {{ entry.ip_address or '-' }}
+                {% else %}
+                  *.*.*.*
+                {% endif %}
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ entry.id }}">Details ▾</button>
+                <div id="details-{{ entry.id }}" class="collapse mt-2">
+                  <pre class="bg-dark text-light p-2 rounded small mb-0">{{ {'extra_json': entry.extra_json, 'before_json': entry.before_json, 'after_json': entry.after_json}|tojson(indent=2) }}</pre>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body pt-0">
+      {{ pagination_controls(pagination, 'audit.audit_log_home') }}
+    </div>
+  {% else %}
+    <div class="card-body text-center py-5">
+      <i class="bi bi-list-check fs-1 text-muted"></i>
+      <h5 class="mt-3">No audit entries found</h5>
+      <p class="text-muted mb-0">Try adjusting your filters or date range.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

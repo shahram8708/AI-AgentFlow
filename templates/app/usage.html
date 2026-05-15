@@ -1,0 +1,269 @@
+{% extends "app/base_app.html" %}
+{% from 'partials/macros.html' import usage_bar %}
+
+{% block title %}Usage & Quota - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Usage</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h2 class="h3 mb-1">Usage &amp; Quota Monitor</h2>
+    <p class="text-muted mb-0">Track monthly usage, storage, API calls, and plan limits.</p>
+  </div>
+  <div class="text-end">
+    <span class="badge text-bg-primary mb-2">{{ plan.name if plan else 'Free' }} Plan</span>
+    {% if quota_limit > 0 and quota_percent >= 80 and next_plan %}
+      <div><a href="/settings/billing" class="small text-decoration-none">Upgrade Plan →</a></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="small text-muted">Task Usage</div>
+            <h5 class="mt-1 mb-0">{{ plan.name if plan else 'Free' }} quota</h5>
+          </div>
+          <span class="badge text-bg-light border">Resets {{ first_of_next_month|to_ist }}</span>
+        </div>
+        <div class="row align-items-center mt-3">
+          <div class="col-sm-5">
+            <canvas id="usage-quota-donut" height="180"></canvas>
+          </div>
+          <div class="col-sm-7">
+            <div class="display-6 fw-bold mb-1">{{ tasks_used }}</div>
+            <div class="small text-muted mb-2">
+              {% if quota_limit == -1 %}
+                {{ tasks_used }} / ∞ tasks used
+              {% else %}
+                {{ tasks_used }} / {{ quota_limit }} tasks used
+              {% endif %}
+            </div>
+            <div class="small text-muted">Usage: {{ quota_percent }}%</div>
+          </div>
+        </div>
+
+        {% if quota_limit > 0 and quota_percent > 95 %}
+          <div class="alert alert-danger mt-3 mb-0">
+            You've used {{ tasks_used }} of {{ quota_limit }} tasks. Upgrade now to avoid interruption.
+          </div>
+        {% elif quota_limit > 0 and quota_percent > 80 %}
+          <div class="alert alert-warning mt-3 mb-0">
+            You're approaching your limit. Upgrade to continue without interruption.
+            {% if next_plan %}
+              Next plan: ₹{{ (next_plan.price_monthly_inr / 100)|round(0)|int }} /month.
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted"><i class="bi bi-hdd me-1"></i>Storage Used</div>
+        <div class="display-6 fw-bold mt-2 mb-1">{{ storage_used_mb }} MB</div>
+        {{ usage_bar(storage_used_mb, 10240, 'Storage') }}
+        <div class="small text-muted mt-3">Outputs kept for {{ plan_limits.output_retention_days }} days</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="small text-muted"><i class="bi bi-code-slash me-1"></i>API Calls</div>
+        <div class="display-6 fw-bold mt-2 mb-1">{{ api_calls_this_month }}</div>
+        {% if plan_limits.api_access %}
+          <div class="small text-success">API access enabled for your plan.</div>
+        {% else %}
+          <div class="small text-muted">API access requires Pro plan. <a href="/settings/billing">Upgrade →</a></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Tasks by Category This Month</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="usage-category-chart" height="260"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Daily Task Usage - Last 30 Days</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="usage-daily-chart" height="260"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Monthly Usage History</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Tasks Used</th>
+          <th>Quota</th>
+          <th>Success Rate</th>
+          <th>Storage Added</th>
+          <th>Plan at Time</th>
+          <th>Report</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in monthly_history %}
+          <tr {% if loop.index == 1 %}class="table-primary"{% endif %}>
+            <td>{{ row.month_label }}</td>
+            <td>{{ row.tasks_used }}</td>
+            <td>{% if row.quota == -1 %}∞{% else %}{{ row.quota }}{% endif %}</td>
+            <td>{{ row.success_rate }}%</td>
+            <td>{{ row.storage_added_mb }} MB</td>
+            <td>{{ row.plan_name }}</td>
+            <td>
+              <a href="{{ url_for('reports.reports_home', date_from=row.month_start.strftime('%Y-%m-%d'), date_to=row.month_end.strftime('%Y-%m-%d'), period='custom', export='csv') }}" class="small text-decoration-none">Download report</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">No usage history available yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if plan and plan.slug in ['free', 'starter'] and next_plan %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+      <div>
+        <h5 class="mb-1">Upgrade to {{ next_plan.name }}</h5>
+        <p class="text-muted mb-0">Higher task quota, better retention, and advanced automation controls.</p>
+      </div>
+      <div class="text-lg-end">
+        <div class="h4 mb-2">₹{{ (next_plan.price_monthly_inr / 100)|round(0)|int }}/month</div>
+        <a href="/settings/billing" class="btn btn-primary">Upgrade Plan</a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<div id="usage-chart-data"
+     data-category='{{ category_breakdown|tojson }}'
+     data-daily='{{ daily_usage|tojson }}'
+     data-quota-percent='{{ quota_percent }}'></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  (function () {
+    const node = document.getElementById('usage-chart-data');
+    if (!node || typeof Chart === 'undefined') return;
+
+    const categories = JSON.parse(node.dataset.category || '[]');
+    const daily = JSON.parse(node.dataset.daily || '[]');
+    const quotaPercent = Number(node.dataset.quotaPercent || 0);
+
+    const quotaCtx = document.getElementById('usage-quota-donut');
+    if (quotaCtx) {
+      new Chart(quotaCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Used', 'Remaining'],
+          datasets: [{
+            data: [Math.min(quotaPercent, 100), Math.max(100 - Math.min(quotaPercent, 100), 0)],
+            backgroundColor: ['#1a56db', '#e2e8f0'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          cutout: '70%',
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    const categoryCtx = document.getElementById('usage-category-chart');
+    if (categoryCtx) {
+      new Chart(categoryCtx, {
+        type: 'bar',
+        data: {
+          labels: categories.map(c => c.label),
+          datasets: [{
+            data: categories.map(c => c.count),
+            backgroundColor: ['#1a56db', '#059669', '#d97706', '#7c3aed', '#0891b2', '#dc2626', '#0d9488', '#ea580c', '#db2777', '#334155']
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    const dailyCtx = document.getElementById('usage-daily-chart');
+    if (dailyCtx) {
+      const values = daily.map(d => Number(d.count || 0));
+      const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+      new Chart(dailyCtx, {
+        type: 'bar',
+        data: {
+          labels: daily.map(d => d.date),
+          datasets: [
+            {
+              label: 'Daily Tasks',
+              data: values,
+              backgroundColor: values.map(v => v > avg ? '#3b82f6' : '#1a56db')
+            },
+            {
+              type: 'line',
+              label: 'Daily Average',
+              data: new Array(values.length).fill(avg),
+              borderColor: '#d97706',
+              borderDash: [6, 4],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          plugins: { legend: { display: true } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 10 } },
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+          }
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

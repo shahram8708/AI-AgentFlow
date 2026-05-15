@@ -1,0 +1,472 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}Connect {{ integration.display_name }} - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .integration-setup-shell {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .integration-icon-circle {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .wizard-step {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    background: #fff;
+  }
+
+  .connection-success {
+    display: none;
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    border-radius: var(--border-radius);
+    padding: 1.2rem;
+    text-align: center;
+  }
+
+  .checkmark-anim {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    margin: 0 auto 0.7rem;
+    background: #22c55e;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    animation: scaleIn 0.3s ease;
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .security-notice {
+    border: 1px solid #dbe7ff;
+    background: #f8fbff;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    color: var(--text-secondary);
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/integrations" class="text-decoration-none">Integrations</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ integration.display_name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== HEADER ====== #}
+{% set icon_class = 'bi-plug' %}
+{% set icon_color = '#1a56db' %}
+{% if integration.service_name in ['google_workspace', 'gmail', 'google_drive', 'google_calendar', 'google_sheets'] %}
+  {% set icon_class = 'bi-google' %}
+  {% set icon_color = '#2563eb' %}
+{% elif integration.service_name == 'github' %}
+  {% set icon_class = 'bi-github' %}
+  {% set icon_color = '#111827' %}
+{% elif integration.service_name == 'slack' %}
+  {% set icon_class = 'bi-slack' %}
+  {% set icon_color = '#7c3aed' %}
+{% elif integration.category == 'Finance' %}
+  {% set icon_class = 'bi-cash-coin' %}
+  {% set icon_color = '#16a34a' %}
+{% endif %}
+
+<div class="integration-setup-shell">
+  <div class="text-center mb-3">
+    <span class="integration-icon-circle mb-2" style="background: {{ icon_color }};"><i class="bi {{ icon_class }}"></i></span>
+    <h2 class="fw-bold mb-1">Connect {{ integration.display_name }}</h2>
+    <div class="d-flex justify-content-center gap-2">
+      <span class="badge text-bg-light border">{{ integration.category }}</span>
+      <span class="badge text-bg-secondary">{{ integration.auth_type|upper }}</span>
+    </div>
+  </div>
+
+  {# ====== STATUS BANNER ====== #}
+  {% if existing_connection %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2" role="alert">
+      <div>✅ {{ integration.display_name }} is currently connected. Last synced: {{ existing_connection.last_synced | timeago if existing_connection.last_synced else 'Never' }}</div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-success" id="test-connection-btn" data-integration-id="{{ integration.id }}" data-loading-text="Testing connection...">Test Connection</button>
+        <button type="button" class="btn btn-sm btn-outline-danger" id="disconnect-connection-btn" data-integration-id="{{ integration.id }}" data-confirm="Disconnect this integration?" data-loading-text="Disconnecting...">Disconnect</button>
+      </div>
+    </div>
+  {% endif %}
+
+  <div id="test-result" class="mb-3"></div>
+
+  {# ====== SETUP WIZARD ====== #}
+  <div id="setup-wizard-card" class="card mb-3">
+    <div class="card-body">
+      {% if auth_type == 'oauth' %}
+        <div class="mb-3 small text-muted">Step 1 -> Step 2 -> Done</div>
+
+        <div class="wizard-step mb-3">
+          <h5 class="fw-semibold mb-2">Authorize with {{ integration.display_name }}</h5>
+          <p class="text-muted mb-2">Click the button below to authorize AgentFlow to access your {{ integration.display_name }} account. You will be redirected to {{ integration.display_name }} login page.</p>
+
+          {% set permissions = ['Read account data', 'Trigger automations', 'Sync metadata'] %}
+          {% if integration.service_name in ['gmail', 'google_workspace'] %}
+            {% set permissions = ['Read your calendar', 'Send emails on your behalf', 'Access profile metadata'] %}
+          {% elif integration.service_name == 'github' %}
+            {% set permissions = ['Read repositories', 'Create webhooks', 'Access commit metadata'] %}
+          {% endif %}
+
+          <ul class="mb-3">
+            {% for permission in permissions %}
+              <li>{{ permission }}</li>
+            {% endfor %}
+          </ul>
+
+          <button id="oauth-connect-btn" type="button" class="btn btn-primary" data-integration-id="{{ integration.id }}" data-loading-text="Connecting...">Connect with {{ integration.display_name }}</button>
+          <p class="small text-muted mt-2 mb-0">We only request the minimum permissions needed. You can revoke access at any time.</p>
+        </div>
+      {% else %}
+        <div class="wizard-step mb-3">
+          <h5 class="fw-semibold mb-2">Enter your API Key</h5>
+
+          {% set guidance = 'Find your API key in the Settings or Developer section of your ' ~ integration.display_name ~ ' account.' %}
+          {% if integration.service_name == 'notion' %}
+            {% set guidance = 'Go to Settings -> Integrations -> New Integration to generate your key.' %}
+          {% elif integration.service_name == 'openai' %}
+            {% set guidance = 'Go to platform.openai.com -> API Keys and create a new key.' %}
+          {% elif integration.service_name == 'razorpay' %}
+            {% set guidance = 'Open Razorpay Dashboard -> Settings -> API Keys to copy your key.' %}
+          {% elif integration.service_name == 'twilio' %}
+            {% set guidance = 'Open Twilio Console and copy your API key from API Keys section.' %}
+          {% endif %}
+
+          <p class="text-muted">{{ guidance }}</p>
+
+          <div class="mb-2">
+            <label class="form-label">Connection Name</label>
+            <input id="connection-name" type="text" class="form-control" value="{{ integration.display_name }} - {{ current_year }}">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">API Key</label>
+            <div class="input-group">
+              <input id="integration-api-key" type="password" class="form-control" autocomplete="off" autocorrect="off">
+              <button type="button" class="btn btn-outline-secondary" id="toggle-api-key" data-no-loading><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
+
+          <div id="connect-error" class="small text-danger mb-2" style="display:none;"></div>
+
+          <button id="api-connect-btn" type="button" class="btn btn-primary" data-integration-id="{{ integration.id }}" data-loading-text="Testing connection...">Test and Connect</button>
+
+          {% if integration.docs_url %}
+            <div class="mt-2"><a href="{{ integration.docs_url }}" target="_blank" rel="noopener" class="small text-decoration-none">Read setup documentation -></a></div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ====== SUCCESS STATE ====== #}
+  <div id="connection-success" class="connection-success mb-3">
+    <div class="checkmark-anim"><i class="bi bi-check-lg"></i></div>
+    <h5 class="fw-bold mb-1">✅ Connected successfully!</h5>
+    <div class="d-flex justify-content-center gap-2 mt-3 flex-wrap">
+      <button type="button" class="btn btn-outline-success btn-sm" id="test-connection-after-success" data-integration-id="{{ integration.id }}" data-loading-text="Testing connection...">Test Connection</button>
+      <a href="/integrations" class="btn btn-outline-primary btn-sm">View in Integrations Hub -></a>
+      <a href="/integrations" class="btn btn-outline-secondary btn-sm">Connect another integration -></a>
+    </div>
+  </div>
+
+  {# ====== SECURITY NOTICE ====== #}
+  <div class="security-notice">
+    🔒 Your credentials are encrypted using AES-256-GCM and stored securely. AgentFlow employees cannot access your credentials. You can delete your credentials at any time from the Credentials Vault.
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function showInlineResult(ok, message) {
+      const container = document.getElementById("test-result");
+      if (!container) {
+        return;
+      }
+      container.innerHTML = `<div class="alert ${ok ? "alert-success" : "alert-danger"} mb-0">${message}</div>`;
+    }
+
+    async function connectApiKey(integrationId) {
+      const apiKeyInput = document.getElementById("integration-api-key");
+      const nameInput = document.getElementById("connection-name");
+      const errorEl = document.getElementById("connect-error");
+      const button = document.getElementById("api-connect-btn");
+
+      const apiKey = String(apiKeyInput ? apiKeyInput.value : "").trim();
+      const connectionName = String(nameInput ? nameInput.value : "").trim();
+      if (!apiKey) {
+        if (errorEl) {
+          errorEl.textContent = "API key is required.";
+          errorEl.style.display = "block";
+        }
+        return;
+      }
+
+      if (errorEl) {
+        errorEl.style.display = "none";
+      }
+
+      if (button && window.setButtonLoading) {
+        window.setButtonLoading(button, "Testing connection...");
+      } else if (button) {
+        button.disabled = true;
+      }
+
+      try {
+        const response = await fetch(`/integrations/${integrationId}/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ api_key: apiKey, name: connectionName })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "Connection failed");
+        }
+
+        const wizard = document.getElementById("setup-wizard-card");
+        const successCard = document.getElementById("connection-success");
+        if (wizard) {
+          wizard.style.display = "none";
+        }
+        if (successCard) {
+          successCard.style.display = "block";
+        }
+        if (window.showToast) {
+          window.showToast("Integration connected successfully", "success");
+        }
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = error.message || "Connection failed";
+          errorEl.style.display = "block";
+        }
+      } finally {
+        if (button && window.resetButton) {
+          window.resetButton(button);
+        } else if (button) {
+          button.disabled = false;
+        }
+        if (apiKeyInput) {
+          apiKeyInput.value = "";
+        }
+      }
+    }
+
+    async function connectOauth(integrationId) {
+      const button = document.getElementById("oauth-connect-btn");
+      if (button && window.setButtonLoading) {
+        window.setButtonLoading(button, "Connecting...");
+      } else if (button) {
+        button.disabled = true;
+      }
+      try {
+        const response = await fetch(`/integrations/${integrationId}/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ auth_type: "oauth" })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "OAuth connection failed");
+        }
+
+        if (payload.data && payload.data.redirect_url) {
+          window.location.href = payload.data.redirect_url;
+          return;
+        }
+
+        const wizard = document.getElementById("setup-wizard-card");
+        const successCard = document.getElementById("connection-success");
+        if (wizard) {
+          wizard.style.display = "none";
+        }
+        if (successCard) {
+          successCard.style.display = "block";
+        }
+      } catch (error) {
+        showInlineResult(false, `❌ Connection failed: ${error.message || "Unknown error"}`);
+      } finally {
+        if (button && window.resetButton) {
+          window.resetButton(button);
+        } else if (button) {
+          button.disabled = false;
+        }
+      }
+    }
+
+    async function testConnection(integrationId) {
+      const testButton = document.activeElement && document.activeElement.tagName === "BUTTON"
+        ? document.activeElement
+        : null;
+      showInlineResult(true, "Testing connection...");
+
+      if (testButton && window.setButtonLoading) {
+        window.setButtonLoading(testButton, "Testing connection...");
+      }
+
+      const controller = new AbortController();
+      const timeoutHandle = window.setTimeout(() => controller.abort(), 4000);
+
+      try {
+        const response = await fetch(`/integrations/${integrationId}/test`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin",
+          signal: controller.signal
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "Connection test failed");
+        }
+
+        showInlineResult(true, "✅ Connection successful");
+      } catch (error) {
+        const message = error.name === "AbortError" ? "Connection test timed out" : (error.message || "Connection test failed");
+        showInlineResult(false, `❌ Test failed: ${message}`);
+      } finally {
+        window.clearTimeout(timeoutHandle);
+        if (testButton && window.resetButton) {
+          window.resetButton(testButton);
+        }
+      }
+    }
+
+    async function disconnectIntegration(integrationId, button) {
+      if (button && window.setButtonLoading) {
+        window.setButtonLoading(button, "Disconnecting...");
+      } else {
+        button.disabled = true;
+      }
+      try {
+        const response = await fetch(`/integrations/${integrationId}`, {
+          method: "DELETE",
+          headers: {
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin"
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "Disconnect failed");
+        }
+        if (window.showToast) {
+          window.showToast("Integration disconnected", "success");
+        }
+        window.location.href = "/integrations";
+      } catch (error) {
+        showInlineResult(false, error.message || "Disconnect failed");
+      } finally {
+        if (button && window.resetButton) {
+          window.resetButton(button);
+        } else if (button) {
+          button.disabled = false;
+        }
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const toggleApiKeyBtn = document.getElementById("toggle-api-key");
+      const apiKeyInput = document.getElementById("integration-api-key");
+      if (toggleApiKeyBtn && apiKeyInput) {
+        toggleApiKeyBtn.addEventListener("click", function () {
+          const isPassword = apiKeyInput.type === "password";
+          apiKeyInput.type = isPassword ? "text" : "password";
+          toggleApiKeyBtn.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+        });
+      }
+
+      const apiConnectBtn = document.getElementById("api-connect-btn");
+      apiConnectBtn && apiConnectBtn.addEventListener("click", function () {
+        const integrationId = apiConnectBtn.dataset.integrationId;
+        if (integrationId) {
+          connectApiKey(integrationId);
+        }
+      });
+
+      const oauthBtn = document.getElementById("oauth-connect-btn");
+      oauthBtn && oauthBtn.addEventListener("click", function () {
+        const integrationId = oauthBtn.dataset.integrationId;
+        if (integrationId) {
+          connectOauth(integrationId);
+        }
+      });
+
+      const testBtn = document.getElementById("test-connection-btn");
+      testBtn && testBtn.addEventListener("click", function () {
+        const integrationId = testBtn.dataset.integrationId;
+        if (integrationId) {
+          testConnection(integrationId);
+        }
+      });
+
+      const testAfterBtn = document.getElementById("test-connection-after-success");
+      testAfterBtn && testAfterBtn.addEventListener("click", function () {
+        const integrationId = testAfterBtn.dataset.integrationId;
+        if (integrationId) {
+          testConnection(integrationId);
+        }
+      });
+
+      document.addEventListener("click", function (event) {
+        const disconnectBtn = event.target.closest("#disconnect-connection-btn");
+        if (!disconnectBtn) {
+          return;
+        }
+
+        if (disconnectBtn.dataset.confirmed !== "true") {
+          return;
+        }
+        disconnectBtn.dataset.confirmed = "false";
+
+        const integrationId = disconnectBtn.dataset.integrationId;
+        if (integrationId) {
+          disconnectIntegration(integrationId, disconnectBtn);
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

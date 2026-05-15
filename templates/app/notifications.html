@@ -1,0 +1,278 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import pagination_controls %}
+
+{% block title %}Notifications - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Notifications</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{% set tasks_count = (type_counts.get('task_complete', 0) + type_counts.get('task_failed', 0)) if type_counts else 0 %}
+{% set start_index = ((notifications.page - 1) * notifications.per_page + 1) if notifications.total else 0 %}
+{% set end_index = (start_index + notifications.items|length - 1) if notifications.total else 0 %}
+
+<div class="notifications-page mx-auto" style="max-width: 800px;">
+  {# ====== PAGE HEADER ====== #}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <h2 class="h4 mb-0">Notifications</h2>
+      <span class="badge bg-light text-dark border" id="notifications-unread-chip">{{ unread_count }} unread</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="mark-all-read-btn" {% if unread_count == 0 %}disabled{% endif %}>Mark All as Read</button>
+      <a href="/settings/account#notifications" class="small text-decoration-none">Settings</a>
+    </div>
+  </div>
+
+  {# ====== FILTER BAR ====== #}
+  <div class="notification-filter-bar mb-3">
+    <a href="/notifications" class="notification-filter-link {% if current_filter == 'all' and not current_type %}active{% endif %}">All <span class="badge bg-light text-dark">{{ type_counts.get('all', 0) }}</span></a>
+    <a href="/notifications?unread=1" class="notification-filter-link {% if current_filter == 'unread' %}active{% endif %}">Unread <span class="badge bg-light text-dark">{{ type_counts.get('unread', 0) }}</span></a>
+    <a href="/notifications?type=tasks" class="notification-filter-link {% if current_type == 'tasks' %}active{% endif %}">Tasks <span class="badge bg-light text-dark">{{ tasks_count }}</span></a>
+    <a href="/notifications?type=billing" class="notification-filter-link {% if current_type == 'billing' %}active{% endif %}">Billing <span class="badge bg-light text-dark">{{ type_counts.get('billing', 0) }}</span></a>
+    <a href="/notifications?type=team" class="notification-filter-link {% if current_type == 'team' %}active{% endif %}">Team <span class="badge bg-light text-dark">{{ type_counts.get('team', 0) }}</span></a>
+    <a href="/notifications?type=system" class="notification-filter-link {% if current_type == 'system' %}active{% endif %}">System <span class="badge bg-light text-dark">{{ type_counts.get('system', 0) }}</span></a>
+  </div>
+
+  {# ====== NOTIFICATIONS LIST ====== #}
+  {% if notifications.total == 0 and current_filter == 'unread' %}
+    <div class="card border-success-subtle">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-check-circle-fill text-success fs-1"></i>
+        <h5 class="mt-3">You're all caught up!</h5>
+        <p class="text-muted mb-0">No unread notifications.</p>
+      </div>
+    </div>
+  {% elif notifications.total == 0 %}
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-bell fs-1 text-muted"></i>
+        <h5 class="mt-3">No notifications yet.</h5>
+        <p class="text-muted mb-0">You'll see task completions, billing updates, and team activity here.</p>
+      </div>
+    </div>
+  {% else %}
+    <div class="notification-list" id="notification-list">
+      {% for notification in notifications.items %}
+        <article
+          class="notification-item-card {% if not notification.is_read %}is-unread{% endif %}"
+          data-notification-id="{{ notification.id }}"
+          data-action-url="{{ notification.action_url or '' }}"
+        >
+          <button type="button" class="notification-delete-btn" data-delete-notification="{{ notification.id }}" aria-label="Delete notification">
+            <i class="bi bi-x"></i>
+          </button>
+
+          <div class="notification-icon-wrap">
+            {% if notification.type == 'task_complete' %}
+              <i class="bi bi-check-circle-fill text-success"></i>
+            {% elif notification.type == 'task_failed' %}
+              <i class="bi bi-x-circle-fill text-danger"></i>
+            {% elif notification.type == 'billing' %}
+              <i class="bi bi-credit-card text-warning"></i>
+            {% elif notification.type == 'team' %}
+              <i class="bi bi-people-fill text-primary"></i>
+            {% elif notification.type == 'quota_warning' %}
+              <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            {% else %}
+              <i class="bi bi-info-circle-fill text-secondary"></i>
+            {% endif %}
+          </div>
+
+          <div class="notification-content-wrap">
+            <div class="notification-title {% if not notification.is_read %}fw-bold{% else %}fw-semibold{% endif %}">{{ notification.title }}</div>
+            <p class="notification-message text-muted mb-1">{{ notification.message[:100] ~ ('...' if notification.message|length > 100 else '') }}</p>
+            <div class="small text-muted">{{ notification.created_at|timeago }}</div>
+          </div>
+
+          <div class="notification-actions-wrap">
+            {% if notification.action_url %}
+              <a href="{{ notification.action_url }}" class="btn btn-sm btn-outline-primary notification-action">View →</a>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mt-3 gap-2 small text-muted">
+      <span>{{ start_index }} – {{ end_index }} of {{ notifications.total }} notifications</span>
+    </div>
+
+    {{ pagination_controls(notifications, 'notifications.notifications_home') }}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function updateTopbarBadge(count) {
+      var badge = document.getElementById("notification-badge");
+      if (!badge) {
+        return;
+      }
+
+      var safeCount = Number(count || 0);
+      badge.textContent = String(safeCount);
+      if (safeCount > 0) {
+        badge.classList.remove("d-none");
+      } else {
+        badge.classList.add("d-none");
+      }
+
+      var unreadChip = document.getElementById("notifications-unread-chip");
+      if (unreadChip) {
+        unreadChip.textContent = String(safeCount) + " unread";
+      }
+
+      var markAllBtn = document.getElementById("mark-all-read-btn");
+      if (markAllBtn) {
+        markAllBtn.disabled = safeCount === 0;
+      }
+    }
+
+    function getCurrentUnreadCount() {
+      var unreadChip = document.getElementById("notifications-unread-chip");
+      if (!unreadChip) {
+        return 0;
+      }
+      var parsed = parseInt(String(unreadChip.textContent || "0"), 10);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+
+    async function markNotificationRead(notificationId) {
+      var response = await fetch("/notifications/" + encodeURIComponent(notificationId) + "/read", {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+        },
+        credentials: "same-origin"
+      });
+      return response.ok;
+    }
+
+    async function deleteNotification(notificationId) {
+      var response = await fetch("/notifications/" + encodeURIComponent(notificationId), {
+        method: "DELETE",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+        },
+        credentials: "same-origin"
+      });
+      return response.ok;
+    }
+
+    async function markAllRead() {
+      var response = await fetch("/notifications/read-all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ source: "notification_center" })
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      var list = document.getElementById("notification-list");
+      var markAllBtn = document.getElementById("mark-all-read-btn");
+
+      if (list) {
+        list.addEventListener("click", async function (event) {
+          var deleteBtn = event.target.closest("[data-delete-notification]");
+          if (deleteBtn) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var deleteId = deleteBtn.getAttribute("data-delete-notification");
+            if (!deleteId) {
+              return;
+            }
+
+            var cardToRemove = deleteBtn.closest(".notification-item-card");
+            var deleted = await deleteNotification(deleteId);
+            if (deleted && cardToRemove) {
+              var wasUnread = cardToRemove.classList.contains("is-unread");
+              cardToRemove.classList.add("notification-fade-out");
+              window.setTimeout(function () {
+                cardToRemove.remove();
+              }, 220);
+
+              if (wasUnread) {
+                updateTopbarBadge(Math.max(getCurrentUnreadCount() - 1, 0));
+              }
+            }
+            return;
+          }
+
+          var actionLink = event.target.closest(".notification-action");
+          if (actionLink) {
+            event.preventDefault();
+          }
+
+          var card = event.target.closest(".notification-item-card");
+          if (!card) {
+            return;
+          }
+
+          var notificationId = card.getAttribute("data-notification-id");
+          var actionUrl = card.getAttribute("data-action-url");
+
+          if (notificationId) {
+            var wasUnreadCard = card.classList.contains("is-unread");
+            var marked = await markNotificationRead(notificationId);
+            if (marked) {
+              card.classList.remove("is-unread");
+              if (wasUnreadCard) {
+                updateTopbarBadge(Math.max(getCurrentUnreadCount() - 1, 0));
+              }
+            }
+          }
+
+          if (actionUrl) {
+            window.location.href = actionUrl;
+          }
+        });
+      }
+
+      if (markAllBtn) {
+        markAllBtn.addEventListener("click", async function () {
+          markAllBtn.disabled = true;
+          var payload = await markAllRead();
+
+          if (payload && payload.success) {
+            updateTopbarBadge(0);
+            document.querySelectorAll(".notification-item-card").forEach(function (card) {
+              card.classList.remove("is-unread");
+            });
+            if (window.showToast) {
+              window.showToast("All notifications marked as read", "success");
+            }
+          } else {
+            markAllBtn.disabled = false;
+            if (window.showToast) {
+              window.showToast("Could not mark all as read", "warning");
+            }
+          }
+        });
+      }
+    });
+  })();
+</script>
+{% endblock %}

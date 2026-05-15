@@ -1,0 +1,731 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, pagination_controls %}
+
+{% block title %}Workflows - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .workflow-view-toggle .btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .workflow-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .workflow-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: var(--primary);
+  }
+
+  .workflow-name-truncate {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 1.5rem;
+  }
+
+  .workflow-description-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.8rem;
+  }
+
+  .workflow-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+  }
+
+  .workflow-dot.done {
+    background: #22c55e;
+  }
+
+  .workflow-dot.failed {
+    background: #ef4444;
+  }
+
+  .workflow-dot.pending {
+    background: #94a3b8;
+  }
+
+  .workflow-create-card {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    background: #f8fafc;
+  }
+
+  .workflow-create-card:hover {
+    border-color: var(--primary);
+    background: #eef2ff;
+  }
+
+  #list-view {
+    display: none;
+  }
+
+  .trigger-pill {
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    background: #f1f5f9;
+  }
+
+  .trigger-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Workflows</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      Saved Workflows
+      <span class="badge text-bg-light border ms-2">{{ workflow_pagination.total }}</span>
+    </h2>
+    <p class="text-muted mb-0">Reusable automation flows for your team.</p>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <div class="btn-group workflow-view-toggle" role="group" aria-label="View toggle">
+      <button type="button" class="btn btn-sm btn-outline-primary active" id="card-view-btn" title="Card view" data-selection="true">
+        <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="list-view-btn" title="List view" data-selection="true">
+        <i class="bi bi-list-task"></i>
+      </button>
+    </div>
+    <a href="/workflows/new" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-1"></i>
+      Create Workflow
+    </a>
+  </div>
+</div>
+
+{# ====== FILTER BAR ====== #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-lg-4">
+        <label for="workflow-search" class="form-label small text-muted mb-1">Search</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" id="workflow-search" class="form-control" placeholder="Search workflows..." value="{{ filter_search }}">
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <label class="form-label small text-muted mb-1">Trigger Type</label>
+        <div class="d-flex flex-wrap gap-1" id="trigger-filters">
+          {% set active_trigger = filter_trigger_type or 'all' %}
+          <button type="button" class="btn btn-sm rounded-pill trigger-pill {% if active_trigger == 'all' %}active{% endif %}" data-trigger="all" data-selection="true">All</button>
+          <button type="button" class="btn btn-sm rounded-pill trigger-pill {% if active_trigger == 'manual' %}active{% endif %}" data-trigger="manual" data-selection="true">Manual</button>
+          <button type="button" class="btn btn-sm rounded-pill trigger-pill {% if active_trigger == 'scheduled' %}active{% endif %}" data-trigger="scheduled" data-selection="true">Scheduled</button>
+          <button type="button" class="btn btn-sm rounded-pill trigger-pill {% if active_trigger == 'webhook' %}active{% endif %}" data-trigger="webhook" data-selection="true">Webhook</button>
+        </div>
+      </div>
+
+      <div class="col-lg-2">
+        <label for="project-filter" class="form-label small text-muted mb-1">Project</label>
+        <select id="project-filter" class="form-select">
+          <option value="">All Projects</option>
+          {% for project in projects %}
+            <option value="{{ project.id }}" {% if filter_project_id and filter_project_id == project.id|string %}selected{% endif %}>{{ project.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-lg-2">
+        <label for="sort-filter" class="form-label small text-muted mb-1">Sort</label>
+        <select id="sort-filter" class="form-select">
+          <option value="newest" {% if filter_sort == 'newest' %}selected{% endif %}>Newest</option>
+          <option value="last_run" {% if filter_sort == 'last_run' %}selected{% endif %}>Last Run</option>
+          <option value="most_used" {% if filter_sort == 'most_used' %}selected{% endif %}>Most Used</option>
+          <option value="alphabetical" {% if filter_sort == 'alphabetical' %}selected{% endif %}>Alphabetical</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="small text-muted" id="result-count">{{ workflows|length }} workflows</div>
+    </div>
+  </div>
+</div>
+
+{% if workflows %}
+  {# ====== CARD VIEW ====== #}
+  <div id="card-view">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" id="workflows-card-grid">
+      {% for workflow in workflows %}
+        {% set steps = workflow.steps_json if workflow.steps_json is iterable else [] %}
+        {% set run_count = workflow_run_counts.get(workflow.id|string, workflow.run_count or 0) %}
+        {% set last_run = workflow_last_runs.get(workflow.id|string) %}
+        {% set status = (last_run.status if last_run else workflow.last_run_status) or 'pending' %}
+        <div class="col workflow-item-card"
+             id="workflow-card-{{ workflow.id }}"
+             data-workflow-id="{{ workflow.id }}"
+             data-name="{{ workflow.name|lower }} {{ (workflow.description or '')|lower }}"
+             data-trigger="{{ workflow.trigger_type }}"
+             data-project-id="{{ workflow.project_id if workflow.project_id else '' }}"
+             data-runs="{{ run_count }}"
+             data-last-run="{{ (last_run.created_at.isoformat() if last_run and last_run.created_at else '') }}">
+          <div class="card workflow-card h-100">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="badge text-bg-light border text-capitalize">{{ workflow.trigger_type }}</span>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/workflows/{{ workflow.id }}?mode=edit"><i class="bi bi-pencil-square me-2"></i>Edit</a></li>
+                    <li><button class="dropdown-item duplicate-workflow-btn" data-workflow-id="{{ workflow.id }}"><i class="bi bi-files me-2"></i>Duplicate</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger delete-workflow-btn" data-workflow-id="{{ workflow.id }}"><i class="bi bi-trash me-2"></i>Delete</button></li>
+                  </ul>
+                </div>
+              </div>
+
+              <h5 class="workflow-name-truncate fw-bold mb-1" title="{{ workflow.name }}">
+                <a href="/workflows/{{ workflow.id }}" class="text-decoration-none text-dark">{{ workflow.name }}</a>
+              </h5>
+              <p class="small text-muted workflow-description-clamp mb-3">{{ workflow.description or 'No description yet.' }}</p>
+
+              <div class="small mb-2">
+                <i class="bi bi-diagram-3 me-1 text-primary"></i>
+                <span class="fw-semibold">{{ steps|length }} steps</span>
+              </div>
+
+              <div class="d-flex flex-wrap gap-1 mb-3">
+                {% for step in steps[:3] %}
+                  <span class="badge text-bg-light border">{{ (step.task_name or step.task_type or 'Step')[:18] }}</span>
+                {% endfor %}
+                {% if steps|length > 3 %}
+                  <span class="badge text-bg-light border">+{{ steps|length - 3 }} more</span>
+                {% endif %}
+              </div>
+
+              <div class="small text-muted d-flex flex-wrap gap-2 mb-3">
+                <span><i class="bi bi-play-circle me-1"></i>{{ run_count }} runs</span>
+                <span>
+                  <span class="workflow-dot {% if status == 'done' %}done{% elif status == 'failed' %}failed{% else %}pending{% endif %}"></span>
+                  {% if last_run and last_run.created_at %}
+                    {{ last_run.created_at|timeago }}
+                  {% elif workflow.last_run_at %}
+                    {{ workflow.last_run_at|timeago }}
+                  {% else %}
+                    Never run
+                  {% endif %}
+                </span>
+                {% if workflow.id|string in active_scheduled_workflow_ids %}
+                  <span class="text-success" data-bs-toggle="tooltip" title="Has active schedule">
+                    <i class="bi bi-calendar-event"></i>
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="mt-auto d-flex justify-content-between align-items-center">
+                <button type="button"
+                        class="btn btn-sm btn-primary run-workflow-btn"
+                        data-workflow-id="{{ workflow.id }}"
+                        data-workflow-name="{{ workflow.name }}">
+                  <i class="bi bi-play-fill me-1"></i>Run
+                </button>
+                <a href="/workflows/{{ workflow.id }}?mode=edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                <span class="badge text-bg-light border">v{{ workflow.version }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="col" id="create-workflow-card">
+        <a href="/workflows/new" class="card workflow-create-card h-100 text-decoration-none">
+          <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
+            <i class="bi bi-plus-circle display-5 text-primary mb-2"></i>
+            <h6 class="fw-semibold text-dark">Create New Workflow</h6>
+            <p class="small text-muted mb-0">Build your next reusable automation flow</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ====== LIST VIEW ====== #}
+  <div id="list-view" class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Steps</th>
+            <th>Trigger</th>
+            <th>Last Run</th>
+            <th>Runs</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="workflow-list-body">
+          {% for workflow in workflows %}
+            {% set steps = workflow.steps_json if workflow.steps_json is iterable else [] %}
+            {% set run_count = workflow_run_counts.get(workflow.id|string, workflow.run_count or 0) %}
+            {% set last_run = workflow_last_runs.get(workflow.id|string) %}
+            {% set status = (last_run.status if last_run else workflow.last_run_status) or 'pending' %}
+            <tr class="workflow-item-row"
+                id="workflow-row-{{ workflow.id }}"
+                data-workflow-id="{{ workflow.id }}"
+                data-name="{{ workflow.name|lower }} {{ (workflow.description or '')|lower }}"
+                data-trigger="{{ workflow.trigger_type }}"
+                data-project-id="{{ workflow.project_id if workflow.project_id else '' }}"
+                data-runs="{{ run_count }}"
+                data-last-run="{{ (last_run.created_at.isoformat() if last_run and last_run.created_at else '') }}">
+              <td>
+                <a href="/workflows/{{ workflow.id }}" class="fw-semibold text-decoration-none">{{ workflow.name }}</a>
+                <div class="small text-muted">v{{ workflow.version }}</div>
+              </td>
+              <td>{{ steps|length }}</td>
+              <td><span class="badge text-bg-light border text-capitalize">{{ workflow.trigger_type }}</span></td>
+              <td>
+                {% if last_run and last_run.created_at %}
+                  {{ last_run.created_at|timeago }}
+                {% elif workflow.last_run_at %}
+                  {{ workflow.last_run_at|timeago }}
+                {% else %}
+                  Never
+                {% endif %}
+              </td>
+              <td>{{ run_count }}</td>
+              <td>
+                <span class="workflow-dot {% if status == 'done' %}done{% elif status == 'failed' %}failed{% else %}pending{% endif %}"></span>
+                <span class="small text-muted text-capitalize">{{ status }}</span>
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-outline-primary run-workflow-btn" data-workflow-id="{{ workflow.id }}" data-workflow-name="{{ workflow.name }}">Run</button>
+                  <a href="/workflows/{{ workflow.id }}?mode=edit" class="btn btn-outline-secondary">Edit</a>
+                  <button type="button" class="btn btn-outline-secondary duplicate-workflow-btn" data-workflow-id="{{ workflow.id }}">Duplicate</button>
+                  <button type="button" class="btn btn-outline-danger delete-workflow-btn" data-workflow-id="{{ workflow.id }}">Delete</button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {{ pagination_controls(workflow_pagination, 'workflows.workflows_home') }}
+{% else %}
+  {{ empty_state('bi-diagram-3', 'No workflows yet', 'Build your first reusable automation workflow', '/workflows/new', 'Create Workflow') }}
+  <div class="text-center mt-2">
+    <a href="/templates" class="small text-decoration-none">Browse Templates -></a>
+  </div>
+{% endif %}
+
+{# ====== RUN WORKFLOW MODAL ====== #}
+<div class="modal fade" id="run-workflow-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="run-workflow-modal-title">Run Workflow</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="run-workflow-form">
+          <input type="hidden" id="run-workflow-id">
+
+          <div class="mb-3">
+            <label for="run-parameter-overrides" class="form-label">Override Parameters (JSON)</label>
+            <textarea id="run-parameter-overrides" class="form-control" rows="5" placeholder='{"key": "value"}'></textarea>
+            <div class="form-text">Override any step inputs as JSON key value pairs.</div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="run-project-id" class="form-label">Project (optional)</label>
+              <select id="run-project-id" class="form-select">
+                {% for value, label in run_form.project_id.choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="run-priority" class="form-label">Priority</label>
+              <select id="run-priority" class="form-select">
+                <option value="default">Default</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="run-workflow-submit-btn">Run Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function updateResultCount(count) {
+      var el = document.getElementById('result-count');
+      if (el) {
+        el.textContent = count + ' workflows';
+      }
+    }
+
+    function getActiveTrigger() {
+      var activePill = document.querySelector('.trigger-pill.active');
+      return activePill ? String(activePill.dataset.trigger || 'all') : 'all';
+    }
+
+    function parseDateValue(value) {
+      if (!value) {
+        return 0;
+      }
+      var date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+
+    function sortItems() {
+      var sortSelect = document.getElementById('sort-filter');
+      var grid = document.getElementById('workflows-card-grid');
+      var tbody = document.getElementById('workflow-list-body');
+      if (!sortSelect || !grid || !tbody) {
+        return;
+      }
+
+      var mode = sortSelect.value || 'newest';
+
+      var cardItems = Array.from(grid.querySelectorAll('.workflow-item-card'));
+      cardItems.sort(function (a, b) {
+        if (mode === 'alphabetical') {
+          return String(a.dataset.name || '').localeCompare(String(b.dataset.name || ''));
+        }
+        if (mode === 'most_used') {
+          return Number(b.dataset.runs || 0) - Number(a.dataset.runs || 0);
+        }
+        if (mode === 'last_run') {
+          return parseDateValue(b.dataset.lastRun || '') - parseDateValue(a.dataset.lastRun || '');
+        }
+        return parseDateValue(b.dataset.lastRun || '') - parseDateValue(a.dataset.lastRun || '');
+      });
+
+      cardItems.forEach(function (item) {
+        grid.appendChild(item);
+      });
+
+      var rowItems = Array.from(tbody.querySelectorAll('.workflow-item-row'));
+      rowItems.sort(function (a, b) {
+        if (mode === 'alphabetical') {
+          return String(a.dataset.name || '').localeCompare(String(b.dataset.name || ''));
+        }
+        if (mode === 'most_used') {
+          return Number(b.dataset.runs || 0) - Number(a.dataset.runs || 0);
+        }
+        if (mode === 'last_run') {
+          return parseDateValue(b.dataset.lastRun || '') - parseDateValue(a.dataset.lastRun || '');
+        }
+        return parseDateValue(b.dataset.lastRun || '') - parseDateValue(a.dataset.lastRun || '');
+      });
+
+      rowItems.forEach(function (item) {
+        tbody.appendChild(item);
+      });
+    }
+
+    function applyFilters() {
+      var searchInput = document.getElementById('workflow-search');
+      var projectSelect = document.getElementById('project-filter');
+      var query = String(searchInput ? searchInput.value : '').trim().toLowerCase();
+      var trigger = getActiveTrigger();
+      var projectId = String(projectSelect ? projectSelect.value : '');
+
+      var visibleCount = 0;
+
+      document.querySelectorAll('.workflow-item-card').forEach(function (card) {
+        var matchesName = String(card.dataset.name || '').indexOf(query) !== -1;
+        var matchesTrigger = trigger === 'all' || String(card.dataset.trigger || '') === trigger;
+        var matchesProject = !projectId || String(card.dataset.projectId || '') === projectId;
+        var visible = matchesName && matchesTrigger && matchesProject;
+        card.style.display = visible ? '' : 'none';
+        if (visible) {
+          visibleCount += 1;
+        }
+      });
+
+      document.querySelectorAll('.workflow-item-row').forEach(function (row) {
+        var matchesName = String(row.dataset.name || '').indexOf(query) !== -1;
+        var matchesTrigger = trigger === 'all' || String(row.dataset.trigger || '') === trigger;
+        var matchesProject = !projectId || String(row.dataset.projectId || '') === projectId;
+        row.style.display = (matchesName && matchesTrigger && matchesProject) ? '' : 'none';
+      });
+
+      updateResultCount(visibleCount);
+    }
+
+    function setViewPreference(viewMode) {
+      var cardView = document.getElementById('card-view');
+      var listView = document.getElementById('list-view');
+      var cardBtn = document.getElementById('card-view-btn');
+      var listBtn = document.getElementById('list-view-btn');
+
+      if (!cardView || !listView || !cardBtn || !listBtn) {
+        return;
+      }
+
+      if (viewMode === 'list') {
+        cardView.style.display = 'none';
+        listView.style.display = 'block';
+        cardBtn.classList.remove('active');
+        listBtn.classList.add('active');
+      } else {
+        cardView.style.display = 'block';
+        listView.style.display = 'none';
+        listBtn.classList.remove('active');
+        cardBtn.classList.add('active');
+      }
+
+      localStorage.setItem('workflow_view_preference', viewMode);
+    }
+
+    function attachRunModalHandlers() {
+      var modalElement = document.getElementById('run-workflow-modal');
+      if (!modalElement) {
+        return;
+      }
+
+      var modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+      var title = document.getElementById('run-workflow-modal-title');
+      var workflowIdInput = document.getElementById('run-workflow-id');
+      var submitButton = document.getElementById('run-workflow-submit-btn');
+
+      document.querySelectorAll('.run-workflow-btn').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var workflowId = button.getAttribute('data-workflow-id');
+          var workflowName = button.getAttribute('data-workflow-name') || 'Workflow';
+          if (!workflowId) {
+            return;
+          }
+          if (workflowIdInput) {
+            workflowIdInput.value = workflowId;
+          }
+          if (title) {
+            title.textContent = 'Run Workflow: ' + workflowName;
+          }
+          modal.show();
+        });
+      });
+
+      if (!submitButton) {
+        return;
+      }
+
+      submitButton.addEventListener('click', async function () {
+        var workflowId = workflowIdInput ? workflowIdInput.value : '';
+        if (!workflowId) {
+          return;
+        }
+
+        var overrides = String(document.getElementById('run-parameter-overrides') ? document.getElementById('run-parameter-overrides').value : '').trim();
+        var payload = {
+          project_id: document.getElementById('run-project-id') ? document.getElementById('run-project-id').value : '',
+          priority: document.getElementById('run-priority') ? document.getElementById('run-priority').value : 'default'
+        };
+
+        if (overrides) {
+          payload.parameter_overrides = overrides;
+        }
+
+        submitButton.disabled = true;
+        try {
+          var response = await fetch('/workflows/' + encodeURIComponent(workflowId) + '/run', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+          });
+
+          var data = await response.json();
+          if (data && data.success && data.data && data.data.monitor_url) {
+            window.location.href = data.data.monitor_url;
+            return;
+          }
+
+          if (window.showToast) {
+            window.showToast((data && data.message) || 'Could not run workflow', 'danger');
+          }
+        } catch (error) {
+          if (window.showToast) {
+            window.showToast('Could not run workflow', 'danger');
+          }
+        } finally {
+          submitButton.disabled = false;
+          modal.hide();
+        }
+      });
+    }
+
+    function attachActionHandlers() {
+      document.querySelectorAll('.delete-workflow-btn').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          var workflowId = button.getAttribute('data-workflow-id');
+          if (!workflowId) {
+            return;
+          }
+
+          if (!window.confirm('Delete this workflow? This action cannot be undone.')) {
+            return;
+          }
+
+          try {
+            var response = await fetch('/workflows/' + encodeURIComponent(workflowId), {
+              method: 'DELETE',
+              headers: {
+                'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+              },
+              credentials: 'same-origin'
+            });
+            var data = await response.json();
+            if (data && data.success) {
+              var card = document.getElementById('workflow-card-' + workflowId);
+              var row = document.getElementById('workflow-row-' + workflowId);
+              if (card) {
+                card.style.opacity = '0';
+                setTimeout(function () {
+                  card.remove();
+                  applyFilters();
+                }, 180);
+              }
+              if (row) {
+                row.remove();
+              }
+              if (window.showToast) {
+                window.showToast('Workflow deleted', 'success');
+              }
+            } else if (window.showToast) {
+              window.showToast((data && data.message) || 'Could not delete workflow', 'danger');
+            }
+          } catch (error) {
+            if (window.showToast) {
+              window.showToast('Could not delete workflow', 'danger');
+            }
+          }
+        });
+      });
+
+      document.querySelectorAll('.duplicate-workflow-btn').forEach(function (button) {
+        button.addEventListener('click', async function () {
+          var workflowId = button.getAttribute('data-workflow-id');
+          if (!workflowId) {
+            return;
+          }
+
+          try {
+            var response = await fetch('/workflows/' + encodeURIComponent(workflowId) + '/duplicate', {
+              method: 'POST',
+              headers: {
+                'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+              },
+              credentials: 'same-origin'
+            });
+            var data = await response.json();
+            if (data && data.success) {
+              if (window.showToast) {
+                window.showToast('Workflow duplicated', 'success');
+              }
+              window.location.reload();
+            } else if (window.showToast) {
+              window.showToast((data && data.message) || 'Could not duplicate workflow', 'danger');
+            }
+          } catch (error) {
+            if (window.showToast) {
+              window.showToast('Could not duplicate workflow', 'danger');
+            }
+          }
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var savedView = localStorage.getItem('workflow_view_preference') || 'card';
+      setViewPreference(savedView === 'list' ? 'list' : 'card');
+
+      var cardBtn = document.getElementById('card-view-btn');
+      var listBtn = document.getElementById('list-view-btn');
+      if (cardBtn) {
+        cardBtn.addEventListener('click', function () { setViewPreference('card'); });
+      }
+      if (listBtn) {
+        listBtn.addEventListener('click', function () { setViewPreference('list'); });
+      }
+
+      var searchInput = document.getElementById('workflow-search');
+      var projectFilter = document.getElementById('project-filter');
+      var sortFilter = document.getElementById('sort-filter');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+      }
+      if (projectFilter) {
+        projectFilter.addEventListener('change', applyFilters);
+      }
+
+      document.querySelectorAll('.trigger-pill').forEach(function (pill) {
+        pill.addEventListener('click', function () {
+          document.querySelectorAll('.trigger-pill').forEach(function (item) {
+            item.classList.remove('active');
+          });
+          pill.classList.add('active');
+          applyFilters();
+        });
+      });
+
+      if (sortFilter) {
+        sortFilter.addEventListener('change', function () {
+          sortItems();
+          applyFilters();
+        });
+      }
+
+      sortItems();
+      applyFilters();
+      attachRunModalHandlers();
+      attachActionHandlers();
+    });
+  })();
+</script>
+{% endblock %}

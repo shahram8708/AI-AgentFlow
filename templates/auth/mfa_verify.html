@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Two Factor Authentication - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .auth-mfa-wrap {
+    min-height: calc(100vh - 2rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+  }
+
+  .auth-mfa-card {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 1rem;
+    box-shadow: var(--card-shadow-deep);
+    border: 1px solid var(--border-color);
+    background: #fff;
+    padding: 2rem;
+  }
+
+  .mfa-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    background: rgba(26, 86, 219, 0.12);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.9rem;
+  }
+
+  .mfa-code-field {
+    text-align: center;
+    letter-spacing: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .auth-submit {
+    width: 100%;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+
+  .backup-toggle {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .backup-box {
+    display: none;
+    margin-top: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background: #f8fafc;
+  }
+
+  .backup-box.active {
+    display: block;
+  }
+
+  @media (max-width: 575.98px) {
+    .auth-mfa-wrap {
+      padding-top: 5rem;
+    }
+
+    .auth-mfa-card {
+      padding: 1.2rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<section class="auth-mfa-wrap">
+  <div class="auth-mfa-card">
+    <div class="mfa-icon"><i class="bi bi-shield-lock-fill"></i></div>
+    <h2 class="h3 fw-bold text-center mb-2">Two Factor Authentication</h2>
+    <p class="text-muted text-center mb-3">Enter the 6 digit code from your authenticator app such as Google Authenticator or Authy.</p>
+
+    <form method="post" action="{{ url_for('auth.mfa_verify_post') }}" id="mfa-verify-form" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="mb-2">
+        {{ form.totp_code(
+          class='form-control mfa-code-field' + (' is-invalid' if form.totp_code.errors else ''),
+          placeholder='000000',
+          autocomplete='one-time-code',
+          inputmode='numeric',
+          pattern='[0-9]*',
+          maxlength='6',
+          autofocus=true,
+          id='mfa-code'
+        ) }}
+        {% for error in form.totp_code.errors %}
+          <div class="invalid-feedback d-block text-center">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="auth-submit mb-2" data-loading-text="Verifying code...">Verify</button>
+
+      <a href="#" class="backup-toggle" id="backup-toggle">Use a backup code instead</a>
+      <div class="backup-box" id="backup-box">
+        <label for="backup-code" class="form-label small text-muted">Backup code</label>
+        <input type="text" name="backup_code" id="backup-code" class="form-control" placeholder="XXXX-XXXX">
+      </div>
+
+      <div class="text-center mt-3">
+        <a href="mailto:support@agentflow.ai" class="small">Having trouble? Contact support</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var codeInput = document.getElementById("mfa-code");
+    var form = document.getElementById("mfa-verify-form");
+    var toggle = document.getElementById("backup-toggle");
+    var box = document.getElementById("backup-box");
+
+    if (codeInput && form) {
+      codeInput.addEventListener("input", function () {
+        codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
+        if (codeInput.value.length === 6) {
+          form.submit();
+        }
+      });
+    }
+
+    if (toggle && box) {
+      toggle.addEventListener("click", function (event) {
+        event.preventDefault();
+        box.classList.toggle("active");
+      });
+    }
+  })();
+</script>
+{% endblock %}

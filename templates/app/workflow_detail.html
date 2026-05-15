@@ -1,0 +1,450 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, status_badge %}
+
+{% block title %}{{ workflow.name }} - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .step-timeline-item {
+    position: relative;
+    padding-left: 3rem;
+    padding-bottom: 1.2rem;
+  }
+
+  .step-timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 28px;
+    bottom: -8px;
+    width: 2px;
+    background: #dbeafe;
+  }
+
+  .step-circle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+  }
+
+  .tag-badge {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/workflows" class="text-decoration-none">Workflows</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ workflow.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+  <div>
+    <h2 class="fw-bold mb-1">
+      {{ workflow.name }}
+      <span class="badge text-bg-light border text-capitalize ms-1">{{ workflow.trigger_type }}</span>
+      <span class="badge text-bg-light border ms-1">v{{ workflow.version }}</span>
+    </h2>
+    {% if workflow.description %}
+      <p class="text-muted mb-2">{{ workflow.description }}</p>
+    {% endif %}
+    {% if workflow.tags_json %}
+      <div class="d-flex flex-wrap gap-1">
+        {% for tag in workflow.tags_json %}
+          <span class="badge rounded-pill tag-badge">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    <button type="button" class="btn btn-primary" id="detail-run-workflow-btn" data-workflow-id="{{ workflow.id }}" data-workflow-name="{{ workflow.name }}">
+      <i class="bi bi-play-circle me-1"></i>Run Now
+    </button>
+    <a href="/workflows/{{ workflow.id }}?mode=edit" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil-square me-1"></i>Edit Workflow
+    </a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-three-dots"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><button class="dropdown-item" id="duplicate-workflow-btn" data-workflow-id="{{ workflow.id }}"><i class="bi bi-files me-2"></i>Duplicate</button></li>
+        <li><button class="dropdown-item" id="share-workflow-btn"><i class="bi bi-share me-2"></i>Share</button></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><button class="dropdown-item text-danger" id="delete-workflow-btn" data-workflow-id="{{ workflow.id }}"><i class="bi bi-trash me-2"></i>Delete</button></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    {# ====== STEPS OVERVIEW ====== #}
+    <div class="card mb-4">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Workflow Steps <span class="badge text-bg-light border ms-1">{{ steps_enriched|length }}</span></h5>
+        <a href="/workflows/{{ workflow.id }}?mode=edit" class="small text-decoration-none">Edit Steps -></a>
+      </div>
+      <div class="card-body">
+        {% if steps_enriched %}
+          {% for step in steps_enriched %}
+            <div class="step-timeline-item">
+              <span class="step-circle">{{ step.index }}</span>
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                  <div class="fw-semibold">{{ step.task_name }}</div>
+                  <span class="badge text-bg-light border">{{ step.category }}</span>
+                </div>
+                <span class="small text-muted">~{{ step.task_config.estimated_seconds|default(60)|duration_display }}</span>
+              </div>
+
+              {% if step.input_json %}
+                <button class="btn btn-link btn-sm p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#step-input-{{ step.index }}" aria-expanded="false">View Inputs</button>
+                <div class="collapse mt-2" id="step-input-{{ step.index }}">
+                  <div class="border rounded p-2 small bg-light">
+                    {% for key, value in step.input_json.items() %}
+                      <div><strong>{{ key }}:</strong> {{ value|string|truncate(140) }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          {{ empty_state('bi-diagram-3', 'No steps configured', 'This workflow has no configured steps yet.', '/workflows/' ~ workflow.id ~ '?mode=edit', 'Configure Steps') }}
+        {% endif %}
+      </div>
+    </div>
+
+    {# ====== RUN HISTORY ====== #}
+    <div class="card">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Run History</h5>
+        <a href="/tasks?workflow_id={{ workflow.id }}" class="small text-decoration-none">View All -></a>
+      </div>
+      <div class="card-body">
+        {% if run_history %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Run #</th>
+                  <th>Status</th>
+                  <th>Started</th>
+                  <th>Duration</th>
+                  <th>Triggered By</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for task in run_history[:10] %}
+                  {% set triggered_by = 'Scheduled' if (task.task_name and task.task_name.startswith('Scheduled:')) else 'Manual' %}
+                  <tr>
+                    <td>#{{ loop.index }}</td>
+                    <td>{{ status_badge(task.status) }}</td>
+                    <td>{{ task.created_at|timeago }}</td>
+                    <td>
+                      {% if task.started_at and task.completed_at %}
+                        {{ (task.completed_at - task.started_at).total_seconds()|duration_display }}
+                      {% else %}
+                        --
+                      {% endif %}
+                    </td>
+                    <td>{{ triggered_by }}</td>
+                    <td>
+                      {% if task.status == 'done' %}
+                        <a href="/tasks/{{ task.id }}/result" class="btn btn-sm btn-outline-primary">View Result</a>
+                      {% else %}
+                        <a href="/tasks/{{ task.id }}/monitor" class="btn btn-sm btn-outline-secondary">Monitor</a>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="small text-muted border-top pt-2">
+            {{ success_count }} successful, {{ failed_count }} failed,
+            {{ success_rate }}% success rate.
+          </div>
+        {% else %}
+          {{ empty_state('bi-clock-history', 'No runs yet', 'Run this workflow to see execution history here.') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    {# ====== STATS SIDEBAR ====== #}
+    <div class="card mb-3">
+      <div class="card-header bg-white"><h6 class="mb-0">Workflow Stats</h6></div>
+      <div class="card-body small">
+        <div class="mb-2 d-flex justify-content-between"><span>Total runs</span><strong>{{ total_count }}</strong></div>
+        <div class="mb-2 d-flex justify-content-between"><span>Success rate</span><strong>{{ success_count }}/{{ total_count }} ({{ success_rate }}%)</strong></div>
+        <div class="mb-2 d-flex justify-content-between"><span>Average duration</span><strong>{{ avg_duration_seconds|duration_display }}</strong></div>
+        <div class="mb-2 d-flex justify-content-between"><span>Last run</span><strong>{{ workflow.last_run_at|timeago if workflow.last_run_at else 'Never' }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Most frequent trigger</span><strong>{{ most_frequent_trigger }}</strong></div>
+      </div>
+    </div>
+
+    {% if active_schedule %}
+      <div class="card mb-3">
+        <div class="card-header bg-white">
+          <h6 class="mb-0">
+            <i class="bi bi-calendar-event text-success me-1"></i>Active Schedule
+          </h6>
+        </div>
+        <div class="card-body small">
+          <div class="mb-1"><strong>{{ active_schedule.name }}</strong></div>
+          <div class="text-muted mb-1">{{ active_schedule_description }}</div>
+          <div class="text-muted mb-2">Next run: {{ active_schedule.next_run_at|to_ist if active_schedule.next_run_at else 'Not calculated' }}</div>
+          <a href="/schedules" class="text-decoration-none">Manage Schedule -></a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ====== QUICK RUN MODAL ====== #}
+<div class="modal fade" id="run-workflow-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="run-workflow-modal-title">Run Workflow: {{ workflow.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="run-workflow-id" value="{{ workflow.id }}">
+
+        <div class="mb-3">
+          <label for="run-parameter-overrides" class="form-label">Override Parameters (JSON)</label>
+          <textarea id="run-parameter-overrides" class="form-control" rows="5" placeholder='{"key": "value"}'></textarea>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="run-project-id" class="form-label">Project (optional)</label>
+            <select id="run-project-id" class="form-select">
+              {% for value, label in run_form.project_id.choices %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="run-priority" class="form-label">Priority</label>
+            <select id="run-priority" class="form-select">
+              <option value="default">Default</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="run-workflow-submit-btn">Run Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function showRunModal() {
+      var modalElement = document.getElementById('run-workflow-modal');
+      if (!modalElement) {
+        return;
+      }
+      bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    }
+
+    async function submitRunWorkflow() {
+      var workflowIdInput = document.getElementById('run-workflow-id');
+      if (!workflowIdInput || !workflowIdInput.value) {
+        return;
+      }
+
+      var payload = {
+        project_id: document.getElementById('run-project-id') ? document.getElementById('run-project-id').value : '',
+        priority: document.getElementById('run-priority') ? document.getElementById('run-priority').value : 'default'
+      };
+
+      var overrides = String(document.getElementById('run-parameter-overrides') ? document.getElementById('run-parameter-overrides').value : '').trim();
+      if (overrides) {
+        payload.parameter_overrides = overrides;
+      }
+
+      var submitButton = document.getElementById('run-workflow-submit-btn');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+
+      try {
+        var response = await fetch('/workflows/' + encodeURIComponent(workflowIdInput.value) + '/run', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+
+        var data = await response.json();
+        if (data && data.success && data.data && data.data.monitor_url) {
+          window.location.href = data.data.monitor_url;
+          return;
+        }
+
+        if (window.showToast) {
+          window.showToast((data && data.message) || 'Could not start workflow', 'danger');
+        }
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast('Could not start workflow', 'danger');
+        }
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+      }
+    }
+
+    async function duplicateWorkflow() {
+      var button = document.getElementById('duplicate-workflow-btn');
+      if (!button) {
+        return;
+      }
+
+      var workflowId = button.getAttribute('data-workflow-id');
+      if (!workflowId) {
+        return;
+      }
+
+      try {
+        var response = await fetch('/workflows/' + encodeURIComponent(workflowId) + '/duplicate', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+          },
+          credentials: 'same-origin'
+        });
+        var data = await response.json();
+        if (data && data.success && data.data && data.data.redirect) {
+          if (window.showToast) {
+            window.showToast('Workflow duplicated', 'success');
+          }
+          window.location.href = data.data.redirect;
+        } else if (window.showToast) {
+          window.showToast((data && data.message) || 'Could not duplicate workflow', 'danger');
+        }
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast('Could not duplicate workflow', 'danger');
+        }
+      }
+    }
+
+    async function deleteWorkflow() {
+      var button = document.getElementById('delete-workflow-btn');
+      if (!button) {
+        return;
+      }
+      var workflowId = button.getAttribute('data-workflow-id');
+      if (!workflowId) {
+        return;
+      }
+
+      if (!window.confirm('Delete this workflow? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        var response = await fetch('/workflows/' + encodeURIComponent(workflowId), {
+          method: 'DELETE',
+          headers: {
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+          },
+          credentials: 'same-origin'
+        });
+        var data = await response.json();
+        if (data && data.success) {
+          window.location.href = '/workflows';
+        } else if (window.showToast) {
+          window.showToast((data && data.message) || 'Could not delete workflow', 'danger');
+        }
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast('Could not delete workflow', 'danger');
+        }
+      }
+    }
+
+    function shareWorkflow() {
+      var shareButton = document.getElementById('share-workflow-btn');
+      if (!shareButton) {
+        return;
+      }
+      var shareUrl = window.location.href;
+      if (window.copyToClipboard) {
+        window.copyToClipboard(shareUrl).then(function () {
+          if (window.showToast) {
+            window.showToast('Workflow link copied', 'success');
+          }
+        }).catch(function () {
+          if (window.showToast) {
+            window.showToast('Could not copy link', 'danger');
+          }
+        });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var runButton = document.getElementById('detail-run-workflow-btn');
+      var runSubmitButton = document.getElementById('run-workflow-submit-btn');
+      var duplicateButton = document.getElementById('duplicate-workflow-btn');
+      var deleteButton = document.getElementById('delete-workflow-btn');
+      var shareButton = document.getElementById('share-workflow-btn');
+
+      if (runButton) {
+        runButton.addEventListener('click', showRunModal);
+      }
+      if (runSubmitButton) {
+        runSubmitButton.addEventListener('click', submitRunWorkflow);
+      }
+      if (duplicateButton) {
+        duplicateButton.addEventListener('click', duplicateWorkflow);
+      }
+      if (deleteButton) {
+        deleteButton.addEventListener('click', deleteWorkflow);
+      }
+      if (shareButton) {
+        shareButton.addEventListener('click', shareWorkflow);
+      }
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 text-center">
+      <h1 class="display-1 fw-bold text-primary mb-3">404</h1>
+      <h2 class="fw-semibold mb-3">Page Not Found</h2>
+      <p class="text-muted mb-4">The page you are looking for does not exist or has moved to a new location.</p>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+          <label class="form-label fw-semibold" for="error-search">Try searching for what you need</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="error-search" type="search" class="form-control" placeholder="Search tasks, workflows, settings">
+            <button class="btn btn-primary" type="button" id="error-search-btn">Search</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+        <a class="btn btn-sm btn-outline-secondary" href="/dashboard">Dashboard</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/projects">Projects</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/help">Help Center</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/support">Support</a>
+      </div>
+
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <button class="btn btn-outline-primary" onclick="history.back()">Go Back</button>
+        <a class="btn btn-primary" href="{{ url_for('public.home') }}">Go to Home</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var input = document.getElementById('error-search');
+    var button = document.getElementById('error-search-btn');
+    if (!input || !button) return;
+
+    function goSearch() {
+      var query = input.value.trim();
+      if (!query) return;
+      window.location.href = '/help?q=' + encodeURIComponent(query);
+    }
+
+    button.addEventListener('click', goSearch);
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        goSearch();
+      }
+    });
+  })();
+</script>
+{% endblock %}

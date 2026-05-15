@@ -1,0 +1,235 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}Getting Started - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Getting Started</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{% set active_step = server_step if server_step else 1 %}
+{% set active_step = 1 if active_step < 1 else active_step %}
+{% set active_step = 4 if active_step > 4 else active_step %}
+{% set selected_persona = saved_preferences.get('persona', '') if saved_preferences else '' %}
+{% set selected_team = saved_preferences.get('team_size', '') if saved_preferences else '' %}
+{% set selected_use_case = saved_preferences.get('use_case', '') if saved_preferences else '' %}
+
+<div class="onboarding-page-wrap">
+  <div class="onboarding-card mx-auto">
+    {# ====== ONBOARDING HEADER ====== #}
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <h4 class="mb-0">Set up your workspace</h4>
+      <a href="/dashboard" class="small text-decoration-none">Skip for now</a>
+    </div>
+
+    {# ====== ONBOARDING PROGRESS ====== #}
+    <div class="onboarding-progress-wrap mb-4">
+      <div class="onboarding-steps" id="onboarding-steps">
+        <div class="onboarding-step-indicator {% if active_step >= 1 %}current{% endif %} {% if active_step > 1 %}completed{% endif %}" data-step="1">
+          <span>1</span>
+          <small>Your Role</small>
+        </div>
+        <div class="onboarding-step-indicator {% if active_step >= 2 %}current{% endif %} {% if active_step > 2 %}completed{% endif %}" data-step="2">
+          <span>2</span>
+          <small>Team Size</small>
+        </div>
+        <div class="onboarding-step-indicator {% if active_step >= 3 %}current{% endif %} {% if active_step > 3 %}completed{% endif %}" data-step="3">
+          <span>3</span>
+          <small>See It Work</small>
+        </div>
+        <div class="onboarding-step-indicator {% if active_step >= 4 %}current{% endif %} {% if active_step > 4 %}completed{% endif %}" data-step="4">
+          <span>4</span>
+          <small>Start Automating</small>
+        </div>
+      </div>
+      <div class="progress mt-3">
+        <div class="progress-bar" id="onboarding-progress-bar" style="width: {{ active_step * 25 }}%"></div>
+      </div>
+    </div>
+
+    <div class="alert alert-danger d-none" id="onboarding-error">Please complete the required fields to continue.</div>
+
+    {# ====== STEP 1 ====== #}
+    <section class="onboarding-step {% if active_step != 1 %}d-none{% endif %}" id="step-1" data-step="1">
+      <form method="post" action="/onboarding" class="onboarding-step-form" id="onboarding-step-1-form" data-manual-loading="true">
+        <input type="hidden" name="step" value="1">
+        <input type="hidden" name="persona" id="selected-persona" value="{{ selected_persona }}">
+
+        <h5 class="mb-1">Tell us about yourself</h5>
+        <p class="text-muted mb-4">We'll personalize your experience based on your role.</p>
+
+        <div class="row g-3 persona-grid" id="persona-grid">
+          {% set personas = [
+            ('researcher', 'Researcher', 'Research & Analysis', 'bi-search'),
+            ('writer', 'Writer / Content Creator', 'Content Strategy & Writing', 'bi-pencil'),
+            ('developer', 'Developer / Engineer', 'Build, debug, and automate code tasks', 'bi-code-slash'),
+            ('sales', 'Sales Professional', 'Prospecting, outreach, and lead qualification', 'bi-graph-up'),
+            ('marketing', 'Marketing Manager', 'Campaigns, content calendars, SEO', 'bi-megaphone'),
+            ('hr', 'HR / Recruiter', 'Hiring workflows and people operations', 'bi-people'),
+            ('finance', 'Finance Professional', 'Analysis, reporting, and compliance', 'bi-calculator'),
+            ('other', 'Other / Generalist', 'A bit of everything', 'bi-person')
+          ] %}
+          {% for value, label, subtitle, icon in personas %}
+            <div class="col-md-3 col-sm-6">
+              <button
+                type="button"
+                class="persona-card {% if selected_persona == value %}selected{% endif %}"
+                data-persona="{{ value }}"
+                data-selection="true"
+              >
+                <span class="persona-icon"><i class="bi {{ icon }}"></i></span>
+                <span class="persona-title">{{ label }}</span>
+                <span class="persona-subtitle">{{ subtitle }}</span>
+                <span class="persona-check"><i class="bi bi-check-circle-fill"></i></span>
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-end mt-4">
+          <button type="submit" class="btn btn-primary px-4" id="step-1-continue" {% if not selected_persona %}disabled{% endif %}>Continue →</button>
+        </div>
+      </form>
+    </section>
+
+    {# ====== STEP 2 ====== #}
+    <section class="onboarding-step {% if active_step != 2 %}d-none{% endif %}" id="step-2" data-step="2">
+      <form method="post" action="/onboarding" class="onboarding-step-form" id="onboarding-step-2-form" data-manual-loading="true">
+        <input type="hidden" name="step" value="2">
+        <input type="hidden" name="persona" id="step2-persona" value="{{ selected_persona }}">
+        <input type="hidden" name="team_size" id="selected-team-size" value="{{ selected_team }}">
+
+        <h5 class="mb-1">How big is your team?</h5>
+        <p class="text-muted mb-4">Tell us your team size so we can tune collaboration defaults.</p>
+
+        <div class="team-size-grid mb-3" id="team-size-grid">
+          <button type="button" class="team-size-option {% if selected_team == 'solo' %}selected{% endif %}" data-team-size="solo" data-selection="true">
+            <span class="team-size-title">Just me</span>
+            <span class="team-size-subtitle">Solo entrepreneur or freelancer</span>
+          </button>
+          <button type="button" class="team-size-option {% if selected_team == '2-10' %}selected{% endif %}" data-team-size="2-10" data-selection="true">
+            <span class="team-size-title">2–10 people</span>
+            <span class="team-size-subtitle">Small team or startup</span>
+          </button>
+          <button type="button" class="team-size-option {% if selected_team == '10-50' %}selected{% endif %}" data-team-size="10-50" data-selection="true">
+            <span class="team-size-title">10–50 people</span>
+            <span class="team-size-subtitle">Growing company</span>
+          </button>
+          <button type="button" class="team-size-option {% if selected_team == '50+' %}selected{% endif %}" data-team-size="50+" data-selection="true">
+            <span class="team-size-title">50+ people</span>
+            <span class="team-size-subtitle">Enterprise organization</span>
+          </button>
+        </div>
+
+        <div class="mb-3">
+          <label for="primary-use-case" class="form-label">What's your primary use case?</label>
+          <textarea class="form-control" id="primary-use-case" name="use_case" rows="3" placeholder="e.g., I need to automate research reports for my consulting clients">{{ selected_use_case }}</textarea>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <a href="/onboarding?step=1" class="btn btn-outline-secondary">← Back</a>
+          <button type="submit" class="btn btn-primary px-4" id="step-2-continue" {% if not selected_team %}disabled{% endif %}>Continue →</button>
+        </div>
+      </form>
+    </section>
+
+    {# ====== STEP 3 ====== #}
+    <section class="onboarding-step {% if active_step != 3 %}d-none{% endif %}" id="step-3" data-step="3">
+      <form method="post" action="/onboarding" class="onboarding-step-form" id="onboarding-step-3-form" data-manual-loading="true">
+        <input type="hidden" name="step" value="3">
+
+        <h5 class="mb-1">Watch your AI agent work</h5>
+        <p class="text-muted mb-4">Here's a live demonstration of what's possible.</p>
+
+        <div class="demo-card">
+          <h6 class="mb-3">Company Research: Tata Consultancy Services</h6>
+          <ul class="demo-steps list-unstyled mb-3" id="demo-steps-list">
+            <li class="demo-step" id="demo-step-1"><span class="demo-step-icon"><i class="bi bi-clock"></i></span><span class="demo-step-text">Searching web sources for TCS...</span></li>
+            <li class="demo-step" id="demo-step-2"><span class="demo-step-icon"><i class="bi bi-clock"></i></span><span class="demo-step-text">Extracting financial data...</span></li>
+            <li class="demo-step" id="demo-step-3"><span class="demo-step-icon"><i class="bi bi-clock"></i></span><span class="demo-step-text">Generating structured report...</span></li>
+            <li class="demo-step" id="demo-step-4"><span class="demo-step-icon"><i class="bi bi-clock"></i></span><span class="demo-step-text">Report complete! 847 words, 6 sources cited.</span></li>
+          </ul>
+
+          <div class="demo-output-preview" id="demo-output-preview">
+            <h6>Executive Research Snapshot</h6>
+            <p class="mb-2">Tata Consultancy Services demonstrates stable revenue growth and strong margins, supported by diversified vertical exposure.</p>
+            <ul>
+              <li>Revenue trend remains resilient in enterprise IT services.</li>
+              <li>Cloud transformation demand continues to support pipeline strength.</li>
+              <li>Competitive edge driven by delivery scale and sector specialization.</li>
+            </ul>
+          </div>
+
+          <button type="button" class="btn btn-outline-success btn-sm mt-2 d-none" id="demo-download-btn">Download Report</button>
+        </div>
+
+        <div class="row text-center mt-3 g-2">
+          <div class="col-4">
+            <div class="demo-metric">4 min avg time</div>
+          </div>
+          <div class="col-4">
+            <div class="demo-metric">6 sources cited</div>
+          </div>
+          <div class="col-4">
+            <div class="demo-metric">847 words generated</div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <a href="/onboarding?step=2" class="btn btn-outline-secondary">← Back</a>
+          <button type="submit" class="btn btn-primary px-4" id="step-3-continue">Let's Start →</button>
+        </div>
+      </form>
+    </section>
+
+    {# ====== STEP 4 ====== #}
+    <section class="onboarding-step {% if active_step != 4 %}d-none{% endif %}" id="step-4" data-step="4">
+      <form method="post" action="/onboarding" class="onboarding-step-form" id="onboarding-step-4-form" data-manual-loading="true">
+        <input type="hidden" name="step" value="4">
+        <input type="hidden" name="completed" value="true">
+
+        <h5 class="mb-1">Choose your first task</h5>
+        <p class="text-muted mb-4">We've picked these based on your profile.</p>
+
+        <div class="row g-3 mb-3">
+          {% for template in featured_templates[:3] %}
+            <div class="col-md-4">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                  <h6 class="fw-semibold mb-2">{{ template.name }}</h6>
+                  <p class="small text-muted mb-2">{{ template.description[:120] ~ ('...' if template.description and template.description|length > 120 else '') }}</p>
+                  <div class="small text-muted mb-3">
+                    {{ template.steps_json|length }} steps
+                    <span class="mx-1">•</span>
+                    {% if template.estimated_time_seconds %}
+                      {{ (template.estimated_time_seconds / 60)|round(0)|int }} min
+                    {% else %}
+                      Quick
+                    {% endif %}
+                  </div>
+                  <a href="/templates/{{ template.id }}" class="btn btn-outline-primary mt-auto btn-sm">Start with this →</a>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <a href="/templates" class="small text-decoration-none">Browse all 481 tasks →</a>
+
+        <div class="d-grid mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">Go to My Dashboard →</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+{% endblock %}

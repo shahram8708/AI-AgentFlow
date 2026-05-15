@@ -1,0 +1,306 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}{{ template.name }} - Template - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .template-step-item {
+    position: relative;
+    padding-left: 3rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .template-step-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 30px;
+    bottom: -8px;
+    width: 2px;
+    background: #dbeafe;
+  }
+
+  .template-step-number {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.82rem;
+  }
+
+  .integration-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: #fff;
+  }
+
+  .similar-template-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .similar-template-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/templates" class="text-decoration-none">Templates</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ template.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== HEADER ====== #}
+<div class="mb-4">
+  <h2 class="fw-bold mb-1">{{ template.name }}</h2>
+  <div class="d-flex flex-wrap gap-1 mb-2">
+    <span class="badge text-bg-light border">{{ template.category|replace('_', ' ')|title }}</span>
+    <span class="badge text-bg-light border text-capitalize">{{ template.difficulty }}</span>
+    {% if template.is_featured %}
+      <span class="badge text-bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Featured</span>
+    {% endif %}
+    <span class="badge text-bg-light border"><i class="bi bi-people me-1"></i>{{ template.usage_count }} uses</span>
+  </div>
+  <p class="text-muted mb-2">{{ template.description or 'No description available for this template.' }}</p>
+  <div class="small text-muted">
+    {% set steps_count = steps_enriched|length %}
+    {% set estimated_total = template.estimated_time_seconds or (steps_enriched | map(attribute='estimated_seconds') | sum) %}
+    {{ steps_count }} steps
+    {% if estimated_total %}
+      <span class="mx-1">|</span>
+      Estimated total time: ~{{ estimated_total|duration_display }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    {# ====== STEP BREAKDOWN ====== #}
+    <div class="card mb-4">
+      <div class="card-header bg-white"><h5 class="mb-0">What this workflow does</h5></div>
+      <div class="card-body">
+        {% if steps_enriched %}
+          {% for step in steps_enriched %}
+            <div class="template-step-item">
+              <span class="template-step-number">{{ step.index }}</span>
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <div>
+                  <div class="fw-semibold">{{ step.task_name }}</div>
+                  <span class="badge text-bg-light border">{{ step.category }}</span>
+                </div>
+                <span class="small text-muted">~{{ step.estimated_seconds|duration_display }}</span>
+              </div>
+              <div class="small text-muted mb-2">{{ step.description }}</div>
+
+              {% if step.input_fields %}
+                <div class="small">
+                  <strong>Input fields:</strong>
+                  <ul class="mb-0 mt-1">
+                    {% for field in step.input_fields %}
+                      <li>{{ field.label if field.label else field.name }} {% if field.required %}(Required){% else %}(Optional){% endif %}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <div class="border-top pt-2 mt-2 small text-muted">
+            Total estimated time: ~{{ (template.estimated_time_seconds or (steps_enriched | map(attribute='estimated_seconds') | sum))|duration_display }}
+          </div>
+        {% else %}
+          <div class="text-muted">No step preview is available for this template.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ====== REQUIRED INTEGRATIONS ====== #}
+    <div class="card mb-4">
+      <div class="card-header bg-white"><h5 class="mb-0">Required Integrations</h5></div>
+      <div class="card-body">
+        {% if not integration_cards %}
+          <p class="text-muted mb-0">No integrations required. Works out of the box.</p>
+        {% else %}
+          <div class="row g-2">
+            {% for integration in integration_cards %}
+              <div class="col-md-6">
+                <div class="integration-card p-3 h-100">
+                  <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div class="fw-semibold">{{ integration.display_name }}</div>
+                    {% if integration.is_connected %}
+                      <span class="badge text-bg-success">Connected</span>
+                    {% else %}
+                      <span class="badge text-bg-light border">Not connected</span>
+                    {% endif %}
+                  </div>
+                  <div class="small text-muted text-capitalize">Auth: {{ integration.auth_type|replace('_', ' ') }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if missing_integrations_count > 0 %}
+            <div class="mt-3">
+              <a href="/integrations" class="text-decoration-none">Connect missing integrations -></a>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    {# ====== SIMILAR TEMPLATES ====== #}
+    {% if related_templates %}
+      <div class="card">
+        <div class="card-header bg-white"><h5 class="mb-0">Similar Templates</h5></div>
+        <div class="card-body">
+          <div class="row g-2">
+            {% for related in related_templates %}
+              <div class="col-md-4">
+                <a href="/templates/{{ related.id }}" class="text-decoration-none text-dark">
+                  <div class="similar-template-card p-3 h-100">
+                    <div class="fw-semibold mb-1">{{ related.name }}</div>
+                    <div class="small text-muted mb-2">{{ related.steps_json|length if related.steps_json is iterable else 0 }} steps</div>
+                    <span class="badge text-bg-light border text-capitalize">{{ related.difficulty }}</span>
+                  </div>
+                </a>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4">
+    {# ====== USE TEMPLATE CTA ====== #}
+    <div class="card mb-3">
+      <div class="card-header bg-white"><h6 class="mb-0">Use This Template</h6></div>
+      <div class="card-body">
+        <button type="button" class="btn btn-primary w-100" id="use-template-btn" data-template-id="{{ template.id }}">
+          Use This Template ->
+        </button>
+        <p class="small text-muted mt-2 mb-2">This creates a new workflow in your library that you can customize and run.</p>
+        <div class="small text-muted">Used by {{ template.usage_count }} teams</div>
+        <div id="use-template-success" class="alert alert-success mt-3 d-none mb-0">
+          Template applied successfully.
+          <a id="open-created-workflow" href="#" class="alert-link">Open Workflow -></a>
+        </div>
+      </div>
+    </div>
+
+    {# ====== TEMPLATE INFO ====== #}
+    <div class="card">
+      <div class="card-header bg-white"><h6 class="mb-0">Template Info</h6></div>
+      <div class="card-body small">
+        <div class="mb-2 d-flex justify-content-between"><span>Created</span><strong>{{ template.created_at|to_ist if template.created_at else '--' }}</strong></div>
+        <div class="mb-2 d-flex justify-content-between"><span>Category</span><span class="badge text-bg-light border">{{ template.category|replace('_', ' ')|title }}</span></div>
+        <div class="mb-2">
+          <div class="d-flex justify-content-between mb-1"><span>Difficulty</span><span class="badge text-bg-light border text-capitalize">{{ template.difficulty }}</span></div>
+          <div class="text-muted">
+            {% if template.difficulty == 'beginner' %}
+              No setup needed.
+            {% elif template.difficulty == 'intermediate' %}
+              Some configuration required.
+            {% else %}
+              Requires integrations and configuration.
+            {% endif %}
+          </div>
+        </div>
+        <div class="mb-2 d-flex justify-content-between"><span>Estimated time</span><strong>{{ (template.estimated_time_seconds or (steps_enriched | map(attribute='estimated_seconds') | sum))|duration_display }}</strong></div>
+        <div>
+          <div class="mb-1">Tags</div>
+          <div class="d-flex flex-wrap gap-1">
+            {% if template.tags_json %}
+              {% for tag in template.tags_json %}
+                <span class="badge text-bg-light border">{{ tag }}</span>
+              {% endfor %}
+            {% else %}
+              <span class="text-muted">No tags</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    async function useTemplate() {
+      var button = document.getElementById('use-template-btn');
+      if (!button) {
+        return;
+      }
+
+      var templateId = button.getAttribute('data-template-id');
+      if (!templateId) {
+        return;
+      }
+
+      button.disabled = true;
+      try {
+        var response = await fetch('/templates/' + encodeURIComponent(templateId) + '/use', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+          },
+          credentials: 'same-origin'
+        });
+        var data = await response.json();
+        if (data && data.success && data.data && data.data.redirect) {
+          var successAlert = document.getElementById('use-template-success');
+          var openLink = document.getElementById('open-created-workflow');
+          if (openLink) {
+            openLink.href = data.data.redirect;
+          }
+          if (successAlert) {
+            successAlert.classList.remove('d-none');
+          }
+          if (window.showToast) {
+            window.showToast('Template added to your workflows', 'success');
+          }
+          setTimeout(function () {
+            window.location.href = data.data.redirect;
+          }, 2000);
+          return;
+        }
+
+        if (window.showToast) {
+          window.showToast((data && data.message) || 'Could not use template', 'danger');
+        }
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast('Could not use template', 'danger');
+        }
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var button = document.getElementById('use-template-btn');
+      if (button) {
+        button.addEventListener('click', useTemplate);
+      }
+    });
+  })();
+</script>
+{% endblock %}

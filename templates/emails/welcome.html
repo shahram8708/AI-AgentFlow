@@ -1,0 +1,34 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+  <h1 style="margin:0 0 10px 0;font-size:26px;line-height:1.3;color:#0f172a;">Welcome to AgentFlow, {{ first_name }}! 🎉</h1>
+  <p style="margin:0 0 22px 0;color:#475569;">You are all set to start automating your work with AI.</p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
+    <tr>
+      <td style="padding:0 0 14px 0;">
+        <strong>1. Launch your first research task</strong><br>
+        <span style="color:#475569;">Use guided prompts to generate verified insights in minutes.</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 0 14px 0;">
+        <strong>2. Save a workflow for recurring tasks</strong><br>
+        <span style="color:#475569;">Package your best process once and run it whenever needed.</span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 0 14px 0;">
+        <strong>3. Explore 481 automation templates</strong><br>
+        <span style="color:#475569;">Start quickly from proven templates across teams and use cases.</span>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0 0 22px 0;">
+    <a href="{{ dashboard_link }}" style="display:inline-block;background-color:#0f172a;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:700;">Go to My Dashboard</a>
+  </p>
+
+  <p style="margin:0 0 8px 0;color:#475569;font-weight:700;">Questions? We are here to help.</p>
+  <p style="margin:0;color:#475569;">Contact us at <a href="mailto:{{ support_email }}" style="color:#1d4ed8;">{{ support_email }}</a></p>
+{% endblock %}

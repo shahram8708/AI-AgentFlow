@@ -1,0 +1,98 @@
+{% set path = request.path %}
+{% set more_active = not (path == '/dashboard' or path.startswith('/tasks/new') or path.startswith('/tasks/configure') or path.startswith('/workflows') or path.startswith('/outputs')) %}
+{% set can_view_audit = current_user.role == 'admin' or (g_org and g_org.owner_id == current_user.id) %}
+
+{# ====== MOBILE BOTTOM NAV ====== #}
+<nav class="mobile-bottom-nav d-md-none" aria-label="Mobile quick navigation">
+  <a class="mobile-nav-item {% if path == '/dashboard' %}active{% endif %}" href="/dashboard">
+    <i class="bi bi-house"></i>
+    <span>Home</span>
+  </a>
+  <a class="mobile-nav-item mobile-nav-primary {% if path == '/tasks/new' or path.startswith('/tasks/configure') %}active{% endif %}" href="/tasks/new">
+    <i class="bi bi-plus-circle"></i>
+    <span>Tasks</span>
+  </a>
+  <a class="mobile-nav-item {% if path.startswith('/workflows') %}active{% endif %}" href="/workflows">
+    <i class="bi bi-diagram-3"></i>
+    <span>Workflows</span>
+  </a>
+  <a class="mobile-nav-item {% if path.startswith('/outputs') %}active{% endif %}" href="/outputs">
+    <i class="bi bi-archive"></i>
+    <span>Outputs</span>
+  </a>
+  <button type="button" class="mobile-nav-item {% if more_active %}active{% endif %}" id="mobile-more-toggle">
+    <i class="bi bi-three-dots"></i>
+    <span>More</span>
+  </button>
+</nav>
+
+{# ====== MOBILE MORE DRAWER ====== #}
+<div class="mobile-more-overlay d-md-none" id="mobile-more-overlay" aria-hidden="true">
+  <div class="mobile-more-drawer" role="dialog" aria-modal="true" aria-label="More navigation">
+    <div class="mobile-more-header">
+      <h5 class="mb-0">More</h5>
+      <button type="button" class="btn btn-light" id="mobile-more-close" aria-label="Close more menu">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="mobile-more-links">
+      <a href="/projects"><i class="bi bi-folder2-open"></i><span>Projects</span></a>
+      <a href="/knowledge"><i class="bi bi-book"></i><span>Knowledge Base</span></a>
+      <a href="/integrations"><i class="bi bi-plug"></i><span>Integrations</span></a>
+      <a href="/team"><i class="bi bi-people"></i><span>Team Members</span></a>
+      <a href="/vault"><i class="bi bi-shield-lock"></i><span>Credentials Vault</span></a>
+      <a href="/reports"><i class="bi bi-bar-chart-line"></i><span>Reports</span></a>
+      <a href="/usage"><i class="bi bi-speedometer"></i><span>Usage &amp; Quota</span></a>
+      {% if can_view_audit %}
+        <a href="/audit-log"><i class="bi bi-list-check"></i><span>Audit Log</span></a>
+      {% endif %}
+      <a href="/notifications"><i class="bi bi-bell"></i><span>Notifications</span></a>
+      <a href="/settings/account"><i class="bi bi-gear"></i><span>Settings</span></a>
+      <a href="/help"><i class="bi bi-question-circle"></i><span>Help</span></a>
+      <a href="/auth/logout" class="text-danger"><i class="bi bi-box-arrow-right"></i><span>Sign Out</span></a>
+    </div>
+  </div>
+</div>
+
+{# ====== MOBILE NAV SCRIPT ====== #}
+<script>
+  (function () {
+    document.addEventListener("DOMContentLoaded", function () {
+      var toggleBtn = document.getElementById("mobile-more-toggle");
+      var closeBtn = document.getElementById("mobile-more-close");
+      var overlay = document.getElementById("mobile-more-overlay");
+
+      if (!toggleBtn || !closeBtn || !overlay) {
+        return;
+      }
+
+      function openDrawer() {
+        overlay.classList.add("open");
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.classList.add("mobile-drawer-open");
+      }
+
+      function closeDrawer() {
+        overlay.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("mobile-drawer-open");
+      }
+
+      toggleBtn.addEventListener("click", openDrawer);
+      closeBtn.addEventListener("click", closeDrawer);
+
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) {
+          closeDrawer();
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeDrawer();
+        }
+      });
+    });
+  })();
+</script>

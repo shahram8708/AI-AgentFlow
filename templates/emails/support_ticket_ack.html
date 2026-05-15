@@ -1,0 +1,24 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+  <h1 style="margin:0 0 10px 0;font-size:24px;line-height:1.3;color:#0f172a;">We Received Your Support Request</h1>
+  <p style="margin:0 0 18px 0;color:#475569;">Hi {{ user.first_name }}, your request is in our support queue.</p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
+    <tr><td style="padding:4px 0;"><strong>Ticket ID:</strong> #{{ (ticket.id|string)[:8]|upper }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Subject:</strong> {{ ticket.subject }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Priority:</strong> {{ ticket.priority|title }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Status:</strong> {{ ticket.status|replace('_', ' ')|title }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Organization:</strong> {{ organization.name }}</td></tr>
+  </table>
+
+  <p style="margin:0 0 12px 0;color:#475569;">Current response windows:</p>
+  <ul style="margin:0 0 18px 18px;color:#475569;">
+    <li>Low: within 48 hours</li>
+    <li>Medium: within 24 hours</li>
+    <li>High: within 8 hours</li>
+    <li>Urgent: within 2 hours</li>
+  </ul>
+
+  <p style="margin:0;color:#475569;">You can review your tickets anytime inside your AgentFlow support page.</p>
+{% endblock %}

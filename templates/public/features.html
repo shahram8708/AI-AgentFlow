@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}Features{% endblock %}
+
+{% block extra_css %}
+<style>
+  .features-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 4rem;
+  }
+
+  .feature-filter-tabs {
+    white-space: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+  }
+
+  .feature-filter-tabs .btn {
+    border-radius: 999px;
+  }
+
+  .feature-category-card {
+    height: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+  }
+
+  .feature-category-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .integration-pill {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    background: var(--bg-card);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== HERO ==================== #}
+  <section class="features-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-3">481 Automation Capabilities</h1>
+      <p class="lead text-white-50 mb-0">Explore every category of tasks AgentFlow can execute across teams, functions, and industries.</p>
+    </div>
+  </section>
+
+  {# ==================== CATEGORY FILTER TABS ==================== #}
+  <section class="py-4 bg-white border-bottom">
+    <div class="container">
+      <div class="feature-filter-tabs d-flex align-items-center gap-2" id="feature-category-tabs">
+        <button class="btn btn-primary btn-sm px-3" data-category="all">All</button>
+        {% for key, category in task_categories.items() %}
+          <button class="btn btn-outline-primary btn-sm px-3" data-category="{{ key }}">{{ category.name }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== FEATURE CARDS GRID ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4" id="feature-category-grid">
+        {% for key, category in task_categories.items() %}
+          {% set category_tasks = tasks_by_category.get(key, []) %}
+          <div class="col-lg-4 col-md-6 feature-card-item" data-category="{{ key }}">
+            <article class="feature-category-card card">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 44px; height: 44px; background: rgba(26, 86, 219, 0.12); color: var(--primary);">
+                    <i class="{{ category.icon }} fs-5"></i>
+                  </span>
+                  <span class="badge rounded-pill text-bg-light border">{{ category.task_count }} tasks</span>
+                </div>
+
+                <h3 class="h5 fw-bold mb-2">{{ category.name }}</h3>
+                <p class="text-muted small mb-3">{{ category.description }}</p>
+
+                <ul class="small text-muted ps-3 mb-3">
+                  {% for task in category_tasks[:3] %}
+                    <li>{{ task.name }}</li>
+                  {% endfor %}
+                </ul>
+
+                <a class="btn btn-sm btn-link p-0" data-bs-toggle="collapse" href="#feature-collapse-{{ key }}" role="button" aria-expanded="false" aria-controls="feature-collapse-{{ key }}">
+                  View all tasks →
+                </a>
+
+                <div class="collapse mt-3" id="feature-collapse-{{ key }}">
+                  <div class="border rounded-3 p-3 bg-light-subtle" style="max-height: 240px; overflow-y: auto;">
+                    <ul class="list-unstyled small mb-0 d-grid gap-2">
+                      {% for task in category_tasks %}
+                        <li class="d-flex justify-content-between align-items-start gap-2">
+                          <span>{{ task.id }} · {{ task.name }}</span>
+                          <a href="{{ url_for('public.use_cases', search=task.name) }}" class="text-decoration-none">Try →</a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== MANUAL VS AI TABLE ==================== #}
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>Task</th>
+              <th>Manual Time</th>
+              <th>With AgentFlow Time</th>
+              <th>Quality</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Company Research</td>
+              <td>3 hours</td>
+              <td>4 min</td>
+              <td>✓ Cited sources</td>
+            </tr>
+            <tr>
+              <td>Cold Email Writing</td>
+              <td>45 min</td>
+              <td>2 min</td>
+              <td>✓ Personalized</td>
+            </tr>
+            <tr>
+              <td>Code Documentation</td>
+              <td>2 hours</td>
+              <td>5 min</td>
+              <td>✓ Structured</td>
+            </tr>
+            <tr>
+              <td>Financial Analysis</td>
+              <td>4 hours</td>
+              <td>8 min</td>
+              <td>✓ Formatted</td>
+            </tr>
+            <tr>
+              <td>Job Description</td>
+              <td>1 hour</td>
+              <td>3 min</td>
+              <td>✓ Optimized</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== INTEGRATIONS SECTION ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold">Connects with your tools</h2>
+        <p class="text-muted mb-0">32+ integrations across productivity, communication, CRM, storage, and finance.</p>
+      </div>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        {% for integration_name in integration_names %}
+          <span class="integration-pill">{{ integration_name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var tabContainer = document.getElementById("feature-category-tabs");
+    var cards = document.querySelectorAll(".feature-card-item");
+
+    function setActive(button) {
+      if (!tabContainer) {
+        return;
+      }
+      tabContainer.querySelectorAll("button").forEach(function (btn) {
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-outline-primary");
+      });
+      button.classList.remove("btn-outline-primary");
+      button.classList.add("btn-primary");
+    }
+
+    function filterCards(category) {
+      cards.forEach(function (card) {
+        if (category === "all" || card.dataset.category === category) {
+          card.classList.remove("d-none");
+        } else {
+          card.classList.add("d-none");
+        }
+      });
+    }
+
+    if (tabContainer) {
+      tabContainer.querySelectorAll("button").forEach(function (button) {
+        button.addEventListener("click", function () {
+          var category = button.dataset.category || "all";
+          setActive(button);
+          filterCards(category);
+        });
+      });
+    }
+  })();
+</script>
+{% endblock %}

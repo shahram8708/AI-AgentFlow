@@ -1,0 +1,203 @@
+{% extends "app/base_app.html" %}
+{% from 'partials/macros.html' import status_badge %}
+
+{% block title %}Reports & Analytics - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Reports</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h2 class="h3 mb-1">Reports &amp; Analytics</h2>
+    <p class="text-muted mb-0">Track task performance, category adoption, and execution trends.</p>
+  </div>
+
+  <div class="d-flex flex-column gap-2 align-items-end">
+    <div class="btn-group btn-group-sm" role="group" aria-label="Period shortcuts">
+      <a href="{{ url_for('reports.reports_home', period='7d') }}" class="btn {% if period == '7d' %}btn-primary{% else %}btn-outline-primary{% endif %}" data-selection="true">Last 7 days</a>
+      <a href="{{ url_for('reports.reports_home', period='30d') }}" class="btn {% if period == '30d' %}btn-primary{% else %}btn-outline-primary{% endif %}" data-selection="true">Last 30 days</a>
+      <a href="{{ url_for('reports.reports_home', period='90d') }}" class="btn {% if period == '90d' %}btn-primary{% else %}btn-outline-primary{% endif %}" data-selection="true">Last 90 days</a>
+      <button type="button" class="btn {% if period == 'custom' %}btn-primary{% else %}btn-outline-primary{% endif %}" id="custom-period-trigger" data-selection="true">Custom</button>
+    </div>
+
+    <form method="get" action="/reports" id="reports-range-form" class="d-flex flex-wrap gap-2 justify-content-end">
+      <input type="hidden" name="period" id="period-input" value="{{ period }}">
+      <input type="date" class="form-control form-control-sm {% if period != 'custom' %}d-none{% endif %}" id="date-from" name="date_from" value="{{ date_from }}">
+      <input type="date" class="form-control form-control-sm {% if period != 'custom' %}d-none{% endif %}" id="date-to" name="date_to" value="{{ date_to }}">
+      <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+      <a href="{{ url_for('reports.reports_home', date_from=date_from, date_to=date_to, period=period, export='csv') }}" class="btn btn-sm btn-outline-secondary">Export CSV</a>
+      <a href="{{ url_for('reports.reports_home', date_from=date_from, date_to=date_to, period=period, export='pdf') }}" class="btn btn-sm btn-outline-dark">Export PDF</a>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-xl col-md-6">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="small text-muted">Total Tasks</div>
+        <div class="display-6 fw-bold counter-animate" data-target="{{ total_tasks }}" id="kpi-total-tasks">{{ total_tasks }}</div>
+        <div class="small {% if tasks_vs_previous_period >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if tasks_vs_previous_period >= 0 %}↑{% else %}↓{% endif %} {{ tasks_vs_previous_period|abs }}% vs previous period
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="small text-muted">Completed</div>
+        <div class="display-6 fw-bold counter-animate" data-target="{{ completed_tasks }}" id="kpi-completed-tasks">{{ completed_tasks }}</div>
+        <div class="small {% if completed_vs_previous_period >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if completed_vs_previous_period >= 0 %}↑{% else %}↓{% endif %} {{ completed_vs_previous_period|abs }}%
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="small text-muted">Failed</div>
+        <div class="display-6 fw-bold {% if failed_tasks > 0 %}text-danger{% endif %} counter-animate" data-target="{{ failed_tasks }}" id="kpi-failed-tasks">{{ failed_tasks }}</div>
+        <div class="small {% if failed_vs_previous_period <= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if failed_vs_previous_period <= 0 %}↓{% else %}↑{% endif %} {{ failed_vs_previous_period|abs }}%
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="small text-muted">Success Rate</div>
+        <div class="display-6 fw-bold {% if success_rate >= 90 %}text-success{% elif success_rate >= 70 %}text-warning{% else %}text-danger{% endif %}" id="kpi-success-rate">{{ success_rate }}%</div>
+        <div class="small text-muted">Completed over completed + failed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="small text-muted">Avg Duration</div>
+        <div class="display-6 fw-bold" id="kpi-avg-duration">{{ avg_duration_seconds|duration_display }}</div>
+        <div class="small text-muted">Across completed tasks</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Task Volume</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="reports-line-chart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Status Distribution</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="reports-doughnut-chart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Tasks by Category</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="reports-bar-chart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pb-0">
+        <h5 class="mb-0">Daily Completion Rate</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="reports-rate-chart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Top 10 Task Types</h5>
+    <a href="/tasks" class="small text-decoration-none">View All →</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle table-hover table-striped mb-0" id="top-task-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Task Type Name</th>
+          <th>Category</th>
+          <th>Count</th>
+          <th>Avg Duration</th>
+          <th>Success Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in top_task_types %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>
+              <div class="fw-semibold">{{ task.task_name }}</div>
+              <div class="small text-muted">{{ task.task_type }}</div>
+            </td>
+            <td><span class="badge text-bg-light border">{{ task.category_label }}</span></td>
+            <td>{{ task.count }}</td>
+            <td>{{ task.avg_duration|duration_display }}</td>
+            <td>
+              <span class="badge {% if task.success_rate >= 90 %}text-bg-success{% elif task.success_rate >= 70 %}text-bg-warning{% else %}text-bg-danger{% endif %}">
+                {{ task.success_rate }}%
+              </span>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No task activity for this range.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="chart-data"
+     data-line-chart='{{ line_chart_data|tojson }}'
+     data-pie-chart='{{ pie_chart_data|tojson }}'
+     data-bar-chart='{{ bar_chart_data|tojson }}'
+     data-rate-chart='{{ daily_success_rate|tojson }}'
+     data-status-breakdown='{{ status_breakdown|tojson }}'
+     data-date-from="{{ date_from }}"
+     data-date-to="{{ date_to }}"
+     data-period="{{ period }}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

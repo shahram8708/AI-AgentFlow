@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign in - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .auth-login-wrap {
+    min-height: calc(100vh - 2rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+  }
+
+  .auth-login-card {
+    width: 100%;
+    max-width: 440px;
+    border-radius: 1rem;
+    box-shadow: var(--card-shadow-deep);
+    border: 1px solid var(--border-color);
+    background: #fff;
+    padding: 2rem;
+  }
+
+  .auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .auth-brand .brand-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .google-btn {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: #1f2937;
+    font-weight: 600;
+    padding: 0.7rem 1rem;
+    border-radius: 0.7rem;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .google-btn:hover {
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+    transform: translateY(-1px);
+    color: #111827;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .auth-divider::before,
+  .auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .auth-divider span {
+    margin: 0 0.65rem;
+  }
+
+  .password-wrap {
+    position: relative;
+  }
+
+  .toggle-password-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.95rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .auth-submit {
+    width: 100%;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+
+  .captcha-hint {
+    border-radius: 0.75rem;
+    border: 1px dashed #f59e0b;
+    background: #fff7ed;
+    color: #9a3412;
+    padding: 0.75rem;
+    font-size: 0.86rem;
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 575.98px) {
+    .auth-login-wrap {
+      padding-top: 5.1rem;
+    }
+
+    .auth-login-card {
+      padding: 1.3rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<section class="auth-login-wrap">
+  <div class="auth-login-card">
+    <div class="text-center mb-3">
+      <a href="{{ url_for('public.home') }}" class="auth-brand" aria-label="AgentFlow home">
+        <span class="brand-badge"><i class="bi bi-lightning-charge-fill"></i></span>
+        <span>AgentFlow</span>
+      </a>
+    </div>
+
+    {% if request.args.get('rate_limited') == '1' %}
+      <div class="alert alert-warning">Too many failed attempts. Please wait 15 minutes before trying again.</div>
+    {% endif %}
+    {% if request.args.get('verified') == '1' %}
+      <div class="alert alert-success">Email verified! Please sign in.</div>
+    {% endif %}
+    {% if request.args.get('oauth_error') == '1' %}
+      <div class="alert alert-danger">Google sign-in failed. Please try again or use email/password.</div>
+    {% endif %}
+
+    <div class="d-flex align-items-start justify-content-between mb-3">
+      <h2 class="h3 fw-bold mb-0">Welcome back</h2>
+      <a href="{{ url_for('auth.register') }}" class="small">New to AgentFlow? Start free →</a>
+    </div>
+
+    <a href="{{ url_for('auth.oauth_google') }}" class="google-btn mb-2" aria-label="Continue with Google">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2C29.3 35.8 26.8 36.9 24 36.9c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.4 39.3 16.1 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4 5.5l.1-.1 6.2 5.2C37 39 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+      </svg>
+      <span>Continue with Google</span>
+    </a>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    {% if captcha_hint %}
+      <div class="captcha-hint">Multiple failed attempts detected. Complete the captcha challenge when prompted.</div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('auth.login_post', next=next_url or request.args.get('next')) }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="form-floating mb-2">
+        {{ form.email(class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='Email Address') }}
+        <label for="{{ form.email.id }}">Email Address</label>
+        {% for error in form.email.errors %}
+          <div class="invalid-feedback d-block">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="form-floating mb-2 password-wrap">
+        {{ form.password(class='form-control pe-5' + (' is-invalid' if form.password.errors else ''), placeholder='Password', id='login-password') }}
+        <label for="login-password">Password</label>
+        <button type="button" class="toggle-password-btn" data-toggle-target="login-password" aria-label="Show password" data-no-loading>
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+      {% for error in form.password.errors %}
+        <div class="invalid-feedback d-block mb-2">{{ error }}</div>
+      {% endfor %}
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="form-check">
+          {{ form.remember_me(class='form-check-input') }}
+          <label class="form-check-label" for="{{ form.remember_me.id }}">Remember me</label>
+        </div>
+        <a href="{{ url_for('auth.forgot_password') }}" class="small">Forgot password?</a>
+      </div>
+
+      <button type="submit" class="auth-submit" data-loading-text="Signing in...">Sign In</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    document.querySelectorAll(".toggle-password-btn").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var targetId = button.getAttribute("data-toggle-target");
+        var input = document.getElementById(targetId);
+        if (!input) {
+          return;
+        }
+        var icon = button.querySelector("i");
+        var isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        if (icon) {
+          icon.className = isPassword ? "bi bi-eye-slash" : "bi bi-eye";
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

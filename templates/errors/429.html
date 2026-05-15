@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Too Many Requests{% endblock %}
+
+{% block content %}
+<section class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 text-center">
+      <h1 class="display-1 fw-bold text-primary mb-3">429</h1>
+      <h2 class="fw-semibold mb-3">Too Many Requests</h2>
+      <p class="text-muted mb-3">You are making requests too quickly. Please wait a moment before trying again.</p>
+      <p class="fs-5 mb-4">Try again in <span id="retry-countdown" class="fw-bold text-warning">60</span> seconds</p>
+      <p class="small text-muted" id="retry-help">Retry button will activate automatically.</p>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <button class="btn btn-warning" id="retry-now" type="button" disabled>Retry Now</button>
+        <button class="btn btn-outline-primary" onclick="history.back()">Go Back</button>
+        <a class="btn btn-primary" href="{{ url_for('public.home') }}">Go to Home</a>
+      </div>
+    </div>
+  </div>
+</section>
+        var retryButton = document.getElementById('retry-now');
+        var helperText = document.getElementById('retry-help');
+{% endblock %}
+
+{% block extra_js %}
+
+        if (retryButton) {
+          retryButton.addEventListener('click', function () {
+            window.location.reload();
+          });
+        }
+
+<script>
+  (function () {
+    var counterEl = document.getElementById('retry-countdown');
+    if (!counterEl) return;
+    var remaining = parseInt(counterEl.textContent || '60', 10);
+            if (retryButton) {
+              retryButton.disabled = false;
+            }
+            if (helperText) {
+              helperText.textContent = 'You can now retry your request.';
+            }
+    var interval = setInterval(function () {
+      remaining = Math.max(0, remaining - 1);
+      counterEl.textContent = String(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+  })();
+</script>
+{% endblock %}

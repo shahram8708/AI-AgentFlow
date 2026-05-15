@@ -1,0 +1,273 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, pagination_controls, usage_bar %}
+
+{% block title %}Outputs Library - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .output-filter-bar {
+    position: sticky;
+    top: 64px;
+    z-index: 10;
+  }
+
+  .output-type-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.9rem;
+  }
+
+  .outputs-card-grid {
+    display: none;
+  }
+
+  .outputs-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Outputs</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h2 class="fw-bold mb-0">Outputs Library</h2>
+      <span class="badge bg-primary-subtle text-primary" id="output-count">{{ total_count }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary" id="bulk-download-btn" disabled>Download Selected</button>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" type="button">Export</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="/outputs/bulk-download?ids={% for output in outputs %}{{ output.id }}{% if not loop.last %},{% endif %}{% endfor %}">All Filtered as ZIP</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{# ====== STORAGE USAGE ====== #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-center">
+      <div class="col-lg-8">
+        {{ usage_bar(storage_used_mb, plan_storage_limit_mb, 'Storage Usage') }}
+      </div>
+      <div class="col-lg-4 text-lg-end">
+        <div class="fw-semibold">{{ storage_used_mb }} MB used of {{ plan_storage_limit_mb }} MB</div>
+        <div class="small text-muted">Outputs are kept for {{ retention_days }} days on your current plan</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== FILTER BAR ====== #}
+<div class="card output-filter-bar mb-3">
+  <div class="card-body py-3">
+    <form method="get" action="/outputs" id="outputs-filter-form">
+      <div class="row g-2 align-items-end">
+        <div class="col-xl-3 col-lg-4">
+          <label class="form-label small mb-1">Search</label>
+          <input type="search" id="outputs-search" name="search" class="form-control form-control-sm" placeholder="Search by task name" value="{{ search }}">
+        </div>
+
+        <div class="col-xl-2 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">Output Type</label>
+          <select class="form-select form-select-sm" name="output_type">
+            <option value="all" {% if selected_output_type == 'all' %}selected{% endif %}>All</option>
+            {% for output_type in ['text', 'code', 'json', 'table', 'html'] %}
+              <option value="{{ output_type }}" {% if selected_output_type == output_type %}selected{% endif %}>{{ output_type|upper }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-xl-2 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">Category</label>
+          <select class="form-select form-select-sm" name="task_type">
+            <option value="all" {% if selected_task_type == 'all' %}selected{% endif %}>All</option>
+            {% for value in task_types %}
+              <option value="{{ value }}" {% if selected_task_type == value %}selected{% endif %}>{{ value|replace('_', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-xl-2 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">Project</label>
+          <select class="form-select form-select-sm" name="project_id">
+            <option value="">All Projects</option>
+            {% for project in projects %}
+              <option value="{{ project.id }}" {% if selected_project_id == project.id|string %}selected{% endif %}>{{ project.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-xl-1 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">From</label>
+          <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+        </div>
+
+        <div class="col-xl-1 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">To</label>
+          <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+        </div>
+
+        <div class="col-xl-1 col-lg-3 col-md-4">
+          <label class="form-label small mb-1">Sort</label>
+          <select class="form-select form-select-sm" name="sort">
+            <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest</option>
+            <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest</option>
+            <option value="largest" {% if selected_sort == 'largest' %}selected{% endif %}>Largest</option>
+            <option value="task_name" {% if selected_sort == 'task_name' %}selected{% endif %}>Task Name</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between mt-2">
+        <div class="small text-muted"><span id="output-count-inline">{{ total_count }}</span> outputs</div>
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" id="view-list-btn" class="btn btn-sm btn-outline-secondary" data-selection="true">List View</button>
+          <button type="button" id="view-grid-btn" class="btn btn-sm btn-outline-secondary" data-selection="true">Grid View</button>
+          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          <a href="/outputs" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ====== BULK ACTION BAR ====== #}
+<div id="bulk-actions-bar" class="alert alert-warning d-flex align-items-center justify-content-between" style="display:none;">
+  <span><span id="selected-count">0</span> selected</span>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-sm btn-outline-primary" id="bulk-download-selected-btn">Download ZIP</button>
+    <button type="button" class="btn btn-sm btn-danger" id="bulk-delete-btn">Delete Selected</button>
+  </div>
+</div>
+
+{% if outputs %}
+  {# ====== LIST VIEW ====== #}
+  <div class="card mb-3" id="outputs-list-view">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="outputs-table">
+        <thead class="table-light">
+          <tr>
+            <th style="width:42px;"><input type="checkbox" id="select-all"></th>
+            <th>Output</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for output in outputs %}
+            {% set task_name = output.task.task_name if output.task and output.task.task_name else 'Untitled task' %}
+            {% set output_icon = 'bi-file-earmark-text' %}
+            {% set output_color = '#1a56db' %}
+            {% if output.output_type == 'json' %}
+              {% set output_icon = 'bi-filetype-json' %}
+              {% set output_color = '#0891b2' %}
+            {% elif output.output_type == 'code' %}
+              {% set output_icon = 'bi-code-square' %}
+              {% set output_color = '#111827' %}
+            {% elif output.output_type == 'table' %}
+              {% set output_icon = 'bi-table' %}
+              {% set output_color = '#0f766e' %}
+            {% elif output.output_type == 'html' %}
+              {% set output_icon = 'bi-filetype-html' %}
+              {% set output_color = '#d97706' %}
+            {% endif %}
+
+            <tr id="output-row-{{ output.id }}" data-name="{{ task_name|lower }}" data-output-id="{{ output.id }}">
+              <td><input type="checkbox" class="task-checkbox" value="{{ output.id }}"></td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="output-type-icon" style="background: {{ output_color }};"><i class="bi {{ output_icon }}"></i></span>
+                  <div>
+                    <a class="fw-semibold text-decoration-none" href="/outputs/{{ output.id }}">{{ task_name }}</a>
+                    <div class="small text-muted">{{ output.task.task_type|replace('_', ' ')|title if output.task else 'Task' }} <span class="badge text-bg-light border ms-1">{{ output.output_type|upper }}</span></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if output.file_size %}
+                  {{ (output.file_size / 1024)|round(2) }} KB
+                {% elif output.content_text %}
+                  {{ (output.content_text|length / 1024)|round(2) }} KB
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ output.created_at | timeago }}</td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <a href="/outputs/{{ output.id }}" class="btn btn-outline-primary">View</a>
+                  <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" type="button">Download</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><a class="dropdown-item" href="/api/outputs/{{ output.id }}/download?format=docx">DOCX</a></li>
+                      <li><a class="dropdown-item" href="/api/outputs/{{ output.id }}/download?format=pdf">PDF</a></li>
+                      <li><a class="dropdown-item" href="/api/outputs/{{ output.id }}/download?format=csv">CSV</a></li>
+                      <li><a class="dropdown-item" href="/api/outputs/{{ output.id }}/download?format=json">JSON</a></li>
+                    </ul>
+                  </div>
+                  <button type="button" class="btn btn-outline-danger delete-output-btn" data-output-id="{{ output.id }}" data-confirm="Delete this output? This cannot be undone.">Delete</button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      {{ pagination_controls(pagination, 'outputs.outputs_home') }}
+    </div>
+  </div>
+
+  {# ====== GRID VIEW ====== #}
+  <div id="outputs-grid-view" class="outputs-card-grid">
+    <div class="row g-3">
+      {% for output in outputs %}
+        {% set task_name = output.task.task_name if output.task and output.task.task_name else 'Untitled task' %}
+        <div class="col-lg-4 col-md-6 output-card-item" data-name="{{ task_name|lower }}" data-output-id="{{ output.id }}">
+          <div class="outputs-card h-100 p-3">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge text-bg-light border">{{ output.output_type|upper }}</span>
+              <span class="small text-muted">{{ output.created_at | timeago }}</span>
+            </div>
+            <h6 class="fw-semibold mb-1"><a href="/outputs/{{ output.id }}" class="text-decoration-none">{{ task_name }}</a></h6>
+            <p class="small text-muted mb-2">{{ output.content_text[:140] if output.content_text else 'File based output' }}{% if output.content_text and output.content_text|length > 140 %}...{% endif %}</p>
+            <div class="d-flex gap-2 mt-auto">
+              <a class="btn btn-sm btn-outline-primary" href="/outputs/{{ output.id }}">View</a>
+              <a class="btn btn-sm btn-outline-secondary" href="/api/outputs/{{ output.id }}/download?format=json">JSON</a>
+              <button type="button" class="btn btn-sm btn-outline-danger delete-output-btn" data-output-id="{{ output.id }}" data-confirm="Delete this output? This cannot be undone.">Delete</button>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  {{ empty_state('bi-archive', 'No outputs yet', 'Run a task to generate your first AI output', '/tasks/new', 'Launch a Task ->') }}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/outputs.js') }}"></script>
+{% endblock %}

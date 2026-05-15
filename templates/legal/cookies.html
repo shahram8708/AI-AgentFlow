@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Cookie Policy - AgentFlow{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <aside class="col-lg-3">
+    <div class="card border-0 shadow-sm sticky-top" style="top: 90px;">
+      <div class="card-body">
+        <h6 class="fw-semibold">Sections</h6>
+        <nav class="nav flex-column small">
+          <a class="nav-link px-0" href="#what">1. What Are Cookies</a>
+          <a class="nav-link px-0" href="#types">2. Types We Use</a>
+          <a class="nav-link px-0" href="#list">3. Cookie List</a>
+          <a class="nav-link px-0" href="#manage">4. Managing Cookies</a>
+          <a class="nav-link px-0" href="#changes">5. Policy Changes</a>
+        </nav>
+      </div>
+    </div>
+  </aside>
+
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <h1 class="h3 mb-1">Cookie Policy</h1>
+        <p class="text-muted">Last updated: April 2025</p>
+
+        <section id="what" class="mb-4">
+          <h2 class="h5">1. What Are Cookies</h2>
+          <p>Cookies are small files stored on your device that allow websites to maintain state, improve security, and personalize user experience.</p>
+        </section>
+
+        <section id="types" class="mb-4">
+          <h2 class="h5">2. Types of Cookies We Use</h2>
+          <ul>
+            <li><strong>Essential:</strong> Required for login and session management.</li>
+            <li><strong>Functional:</strong> Save preferences such as timezone and UI choices.</li>
+            <li><strong>Analytics:</strong> Help us understand product usage trends.</li>
+            <li><strong>Security:</strong> Support CSRF and abuse prevention controls.</li>
+          </ul>
+        </section>
+
+        <section id="list" class="mb-4">
+          <h2 class="h5">3. Cookie Names and Purpose</h2>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead class="table-light"><tr><th>Cookie Name</th><th>Purpose</th><th>Duration</th><th>Type</th></tr></thead>
+              <tbody>
+                <tr><td>session</td><td>Authenticated session state</td><td>Session</td><td>Essential</td></tr>
+                <tr><td>csrf_token</td><td>CSRF form protection</td><td>Session</td><td>Security</td></tr>
+                <tr><td>remember_token</td><td>Persistent login option</td><td>30 days</td><td>Essential</td></tr>
+                <tr><td>timezone</td><td>User display preferences</td><td>180 days</td><td>Functional</td></tr>
+                <tr><td>onboarding_state</td><td>Onboarding progress tracking</td><td>30 days</td><td>Functional</td></tr>
+                <tr><td>analytics_id</td><td>Anonymous usage analytics</td><td>13 months</td><td>Analytics</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="manage" class="mb-4">
+          <h2 class="h5">4. How to Manage Cookies</h2>
+          <p>You can block or delete cookies from browser settings. Disabling essential cookies may break login and workspace functionality.</p>
+        </section>
+
+        <section id="changes" class="mb-0">
+          <h2 class="h5">5. Changes to This Policy</h2>
+          <p>We may update this policy periodically. Continued usage after changes means you accept the revised policy.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

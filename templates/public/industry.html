@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ industry.name }} Solutions{% endblock %}
+
+{% block extra_css %}
+<style>
+  .industry-hero {
+    color: var(--bg-card);
+    padding: 8rem 0 4.5rem;
+  }
+
+  .industry-stat {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .industry-task-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    height: 100%;
+  }
+
+  .industry-task-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .testimonial-block {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .quote-mark {
+    font-size: 3rem;
+    color: var(--primary);
+    line-height: 1;
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== INDUSTRY HERO SECTION ==================== #}
+  <section class="industry-hero" style="background: {{ industry.hero_gradient }};">
+    <div class="container">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+          <div class="display-6 mb-2"><i class="{{ industry.icon }}"></i></div>
+          <h1 class="display-5 fw-bold mb-3">{{ industry.hero_title }}</h1>
+          <p class="lead text-white-50 mb-4">{{ industry.hero_subtitle }}</p>
+          <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">Start Free</a>
+
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            {% for badge in industry.compliance_badges %}
+              <span class="badge rounded-pill text-bg-dark"><i class="bi bi-shield-check me-1"></i>{{ badge }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="row g-3">
+            {% for stat in industry.stats %}
+              <div class="col-12">
+                <div class="industry-stat">
+                  <div class="h3 fw-bold mb-1">{{ stat.value }}</div>
+                  <div class="small text-white-50">{{ stat.label }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== INDUSTRY USE CASES SECTION ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">{{ industry.use_case_headline }}</h2>
+      </div>
+      <div class="row g-4">
+        {% for task in industry_tasks %}
+          {% set category = task_categories.get(task.category) %}
+          <div class="col-xl-3 col-lg-4 col-md-6">
+            <article class="industry-task-card card">
+              <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <span class="badge rounded-pill" style="background: rgba(26, 86, 219, 0.12); color: var(--primary);">{{ category.name if category else task.category }}</span>
+                  <small class="text-muted">{{ task.id }}</small>
+                </div>
+                <h3 class="h6 fw-bold">{{ task.name }}</h3>
+                <p class="small text-muted mb-3">{{ task.description }}</p>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-sm">Try Now →</a>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== TESTIMONIAL SECTION ==================== #}
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container text-center">
+      <div class="testimonial-block">
+        <div class="quote-mark">“</div>
+        <p class="lead fst-italic mb-3">{{ industry.testimonial.quote }}</p>
+        <div class="text-warning mb-2">★★★★★</div>
+        <strong>{{ industry.testimonial.author }}</strong>
+        <div class="text-muted">{{ industry.testimonial.title }} · {{ industry.testimonial.company }}</div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== INDUSTRY BENEFITS ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold">How AgentFlow Helps {{ industry.name }}</h2>
+      </div>
+      <div class="row g-4">
+        {% for benefit in industry.benefits[:3] %}
+          <div class="col-md-4">
+            <div class="card h-100">
+              <div class="card-body p-4">
+                <div class="mb-2" style="color: var(--primary);"><i class="bi bi-check2-circle fs-4"></i></div>
+                <p class="mb-0 text-muted">{{ benefit }}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== FINAL CTA ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="rounded-4 text-center p-4 p-lg-5 text-white" style="background: linear-gradient(135deg, var(--primary), var(--accent));">
+        <h2 class="fw-bold mb-3">Ready to automate {{ industry.name }} workflows?</h2>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">{{ industry.cta_text }}</a>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}

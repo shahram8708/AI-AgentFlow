@@ -1,0 +1,226 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}{{ task.task_name }} - Running - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .timeline-steps {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .step-item {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 0.75rem;
+    align-items: start;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.8rem;
+    background: #ffffff;
+  }
+
+  .step-item[data-status='running'] {
+    border-color: rgba(37, 99, 235, 0.4);
+    background: rgba(37, 99, 235, 0.04);
+  }
+
+  .step-item[data-status='done'] {
+    border-color: rgba(34, 197, 94, 0.35);
+    background: rgba(34, 197, 94, 0.04);
+  }
+
+  .step-item[data-status='failed'] {
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.04);
+  }
+
+  .step-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+  }
+
+  .log-entry {
+    margin-bottom: 0.35rem;
+    word-break: break-word;
+  }
+
+  .status-banner-actions .btn {
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/tasks" class="text-decoration-none">Tasks</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ task.task_name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== TASK DATA BRIDGE ====== #}
+<div
+  id="task-data"
+  data-task-id="{{ task.id }}"
+  data-created-at="{{ task.created_at.isoformat() if task.created_at else '' }}"
+  data-status="{{ task.status }}"
+  data-task-type="{{ task.task_type }}"
+  style="display:none;"
+></div>
+
+{# ====== PAGE HEADER ====== #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div>
+        <h3 class="fw-bold mb-1 text-truncate" style="max-width: 720px;">{{ task.task_name or task.task_type }}</h3>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="badge bg-light text-dark border">{{ task.task_type }}</span>
+          <span id="sse-indicator" class="badge bg-warning text-dark">
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Connecting...
+          </span>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span id="elapsed-timer" class="badge bg-secondary fs-6">00:00:00</span>
+        <button
+          id="cancel-btn"
+          class="btn btn-outline-danger btn-sm"
+          data-loading-text="Cancelling task..."
+          {% if task.status in ['done', 'failed', 'cancelled'] %}disabled{% endif %}
+        >
+          Cancel Task
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== STATUS BANNER ====== #}
+<div id="status-banner" class="alert {% if task.status == 'pending' %}alert-secondary{% elif task.status == 'running' %}alert-primary{% elif task.status == 'done' %}alert-success{% elif task.status == 'failed' %}alert-danger{% else %}alert-warning{% endif %} d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <div>
+    {% if task.status == 'pending' %}
+      <span>Task queued, waiting for an AI agent to pick it up...</span>
+    {% elif task.status == 'running' %}
+      <span class="d-inline-flex align-items-center"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>AI agent is working on your task...</span>
+    {% elif task.status == 'done' %}
+      <span>Task completed successfully.</span>
+    {% elif task.status == 'failed' %}
+      <span>Task failed: {{ task.error_message or 'Unknown error' }}</span>
+    {% else %}
+      <span>Task was cancelled.</span>
+    {% endif %}
+  </div>
+  <div class="status-banner-actions d-flex gap-2">
+    {% if task.status == 'done' %}
+      <a href="/tasks/{{ task.id }}/result" class="btn btn-sm btn-success">View Result</a>
+    {% elif task.status == 'failed' %}
+      <a href="/tasks/configure/{{ task.task_type }}" class="btn btn-sm btn-outline-danger">Retry</a>
+      <a href="/support" class="btn btn-sm btn-outline-secondary">Contact Support</a>
+    {% endif %}
+  </div>
+</div>
+
+{# ====== MAIN LAYOUT ====== #}
+<div class="row g-3">
+  {# ====== LEFT COLUMN ====== #}
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-white">
+        <h6 class="mb-0">Execution Steps</h6>
+      </div>
+      <div class="card-body">
+        <div id="steps-container" class="timeline-steps">
+          {% if steps %}
+            {% for step in steps %}
+              <div class="step-item" id="step-{{ step.step_number }}" data-status="{{ step.status }}">
+                <div class="step-icon">
+                  {% if step.status == 'running' %}
+                    <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+                  {% elif step.status == 'done' %}
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                  {% elif step.status == 'failed' %}
+                    <i class="bi bi-x-circle-fill text-danger"></i>
+                  {% else %}
+                    <i class="bi bi-clock text-secondary"></i>
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ step.step_name }}</div>
+                  <div class="small text-muted text-capitalize">{{ step.status }}</div>
+                </div>
+                <div class="small text-muted">
+                  {% if step.duration_ms %}
+                    <span class="badge bg-light text-dark border">{{ (step.duration_ms // 1000) }}s</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            {% for placeholder in task_config.get('typical_steps', []) %}
+              <div class="step-item" id="step-{{ loop.index }}" data-status="pending">
+                <div class="step-icon"><i class="bi bi-clock text-secondary"></i></div>
+                <div>
+                  <div class="fw-semibold">{{ placeholder }}</div>
+                  <div class="small text-muted">pending</div>
+                </div>
+                <div></div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Live Agent Log</span>
+        <button id="clear-log-btn" class="btn btn-sm btn-outline-secondary">Clear</button>
+      </div>
+      <div
+        id="agent-log"
+        class="bg-dark text-light p-3 rounded-bottom font-mono"
+        style="height: 280px; overflow-y: auto; font-size: 0.8rem; line-height: 1.5;"
+      >
+        <div class="text-muted">Waiting for agent to start...</div>
+      </div>
+    </div>
+  </div>
+
+  {# ====== RIGHT COLUMN ====== #}
+  <div class="col-lg-4">
+    <div class="card sticky-top" style="top: 80px;">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Output Preview</span>
+        <span id="output-word-count" class="badge bg-secondary ms-2">0 words</span>
+      </div>
+      <div
+        id="output-preview"
+        class="card-body p-3"
+        style="max-height: 450px; overflow-y: auto; white-space: pre-wrap; font-size: 0.85rem;"
+      >
+        <div class="text-muted fst-italic">Output will appear here as the agent generates it...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/task_monitor.js') }}"></script>
+{% endblock %}

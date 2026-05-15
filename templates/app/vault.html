@@ -1,0 +1,290 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}Credentials Vault - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .vault-security-badge {
+    border: 1px solid #cde5ff;
+    background: #f4f9ff;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .service-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.95rem;
+  }
+
+  .vault-table-wrap {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+  }
+
+  .vault-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fbff;
+    white-space: nowrap;
+  }
+
+  .vault-row-fade {
+    transition: opacity 0.3s ease;
+  }
+
+  .vault-row-fade.removing {
+    opacity: 0;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Vault</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h2 class="fw-bold mb-0">Credentials Vault</h2>
+      <span class="badge bg-primary-subtle text-primary">{{ total_entries }}</span>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <span class="vault-security-badge"><i class="bi bi-shield-lock text-success me-1"></i>AES-256-GCM Encrypted</span>
+      <span class="vault-security-badge"><i class="bi bi-eye-slash me-1"></i>Zero-knowledge storage</span>
+    </div>
+  </div>
+  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-credential-modal">Add Credential</button>
+</div>
+
+{# ====== INFO ALERT ====== #}
+<div id="vault-security-banner" class="alert alert-info alert-dismissible fade show" role="alert">
+  🔒 Your credentials are encrypted with AES-256-GCM encryption. Revealing a credential requires password re-authentication. AgentFlow never has access to your plaintext credentials.
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" id="vault-security-banner-dismiss"></button>
+</div>
+
+{# ====== TABLE ====== #}
+<div class="vault-table-wrap">
+  <div class="table-responsive" style="max-height: 68vh;">
+    <table class="table table-hover align-middle mb-0 vault-table" id="vault-table">
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Label</th>
+          <th>Added By</th>
+          <th>Created</th>
+          <th>Last Used</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="vault-table-body">
+        {% for entry in entries %}
+          {% set service = entry.service_name|lower %}
+          {% set icon_class = 'bi-plug' %}
+          {% set icon_color = '#1a56db' %}
+          {% if service in ['google', 'gmail', 'google_workspace', 'google_drive', 'google_calendar', 'google_sheets'] %}
+            {% set icon_class = 'bi-google' %}
+            {% set icon_color = '#2563eb' %}
+          {% elif service == 'github' %}
+            {% set icon_class = 'bi-github' %}
+            {% set icon_color = '#111827' %}
+          {% elif service == 'slack' %}
+            {% set icon_class = 'bi-slack' %}
+            {% set icon_color = '#7c3aed' %}
+          {% elif service in ['aws', 'aws_s3', 'azure'] %}
+            {% set icon_class = 'bi-cloud-fill' %}
+            {% set icon_color = '#0f766e' %}
+          {% elif service in ['openai', 'anthropic'] %}
+            {% set icon_class = 'bi-stars' %}
+            {% set icon_color = '#2563eb' %}
+          {% endif %}
+
+          <tr id="vault-row-{{ entry.id }}" data-entry-id="{{ entry.id }}" class="vault-row-fade">
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <span class="service-circle" style="background: {{ icon_color }};"><i class="bi {{ icon_class }}"></i></span>
+                <span class="text-capitalize">{{ entry.service_name }}</span>
+              </div>
+            </td>
+            <td class="text-truncate" style="max-width: 260px;" title="{{ entry.label }}">{{ entry.label }}</td>
+            <td>{{ entry.created_by_name }}</td>
+            <td>{{ entry.created_at | timeago }}</td>
+            <td>{{ entry.last_used | timeago if entry.last_used else 'Never used' }}</td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="reveal-btn btn btn-sm btn-outline-secondary" data-entry-id="{{ entry.id }}" data-service-name="{{ entry.service_name }}" data-label="{{ entry.label }}">Reveal</button>
+                <button type="button" class="copy-btn btn btn-sm btn-outline-primary" data-entry-id="{{ entry.id }}" data-service-name="{{ entry.service_name }}" data-label="{{ entry.label }}">Copy</button>
+                <button type="button" class="edit-btn btn btn-sm btn-outline-dark" data-entry-id="{{ entry.id }}" data-service-name="{{ entry.service_name }}" data-label="{{ entry.label }}">Edit</button>
+                <button type="button" class="delete-credential-btn btn btn-sm btn-outline-danger" data-entry-id="{{ entry.id }}" data-confirm="Delete this credential from vault?" data-loading-text="Deleting...">Delete</button>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr id="vault-empty-row">
+            <td colspan="6" class="text-center text-muted py-4">No credentials yet. Add your first credential to secure your integration keys.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if current_user.is_admin %}
+  <div class="small text-muted mt-2">
+    🔍 Vault Integrity: ready to verify {{ total_entries }} entries.
+    <a href="/vault/verify-integrity" class="text-decoration-none" id="vault-run-integrity-check">Run Check -></a>
+  </div>
+{% endif %}
+
+{# ====== ADD MODAL ====== #}
+<div class="modal fade" id="add-credential-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="add-credential-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Credential</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Service Name</label>
+            <input type="text" class="form-control" id="add-service-name" required list="vault-service-suggestions">
+            <datalist id="vault-service-suggestions">
+              <option value="Google"></option>
+              <option value="GitHub"></option>
+              <option value="Slack"></option>
+              <option value="Notion"></option>
+              <option value="OpenAI"></option>
+              <option value="Razorpay"></option>
+              <option value="Twilio"></option>
+              <option value="SendGrid"></option>
+              <option value="AWS"></option>
+              <option value="Azure"></option>
+            </datalist>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Label</label>
+            <input type="text" class="form-control" id="add-label" required>
+            <div class="form-text">A descriptive name for this credential, for example Production API Key or Personal Google Account</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Credential Value</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="add-credential-value" autocomplete="new-password" required>
+              <button type="button" class="btn btn-outline-secondary" id="toggle-add-credential" data-no-loading><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
+          <div class="small text-muted">This credential will be encrypted before storage. You can reveal it anytime using your account password.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-credential-btn" data-loading-text="Encrypting & saving...">Save Credential</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== REVEAL MODAL ====== #}
+<div class="modal fade" id="reveal-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" data-target-entry-id="">
+      <div class="modal-header">
+        <h5 class="modal-title">Reveal Credential</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="small text-muted mb-2" id="reveal-entry-meta"></div>
+        <p class="small text-danger">⚠️ Enter your AgentFlow password to reveal this credential. This action is logged for security.</p>
+
+        <div id="reveal-password-section">
+          <div class="mb-2">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="reveal-password" autocomplete="current-password">
+          </div>
+          <div class="small text-danger mb-2" id="reveal-error" style="display:none;"></div>
+          <button type="button" class="btn btn-primary" id="reveal-submit-btn" data-loading-text="Verifying password...">Reveal</button>
+        </div>
+
+        <div id="revealed-value-section" style="display:none;">
+          <label class="form-label">Revealed Value</label>
+          <div class="input-group mb-2">
+            <input type="text" class="form-control" id="revealed-value" readonly>
+            <button type="button" class="btn btn-outline-primary" id="copy-revealed-btn">Copy</button>
+            <button type="button" class="btn btn-outline-secondary" id="hide-revealed-btn">Hide</button>
+          </div>
+          <div class="small text-muted">Value will be hidden in <span id="countdown-seconds">60</span> seconds</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== COPY PASSWORD MODAL ====== #}
+<div class="modal fade" id="copy-password-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" data-target-entry-id="">
+      <div class="modal-header">
+        <h5 class="modal-title">Copy Credential</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Enter your password to copy this credential to clipboard.</p>
+        <div class="mb-2">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" id="copy-password-input" autocomplete="current-password">
+        </div>
+        <div class="small text-danger mb-2" id="copy-password-error" style="display:none;"></div>
+        <button type="button" class="btn btn-primary" id="copy-password-submit">Copy Credential</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== EDIT MODAL ====== #}
+<div class="modal fade" id="edit-label-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" data-target-entry-id="">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Credential</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Service Name</label>
+          <input type="text" class="form-control" id="edit-service-name" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Label</label>
+          <input type="text" class="form-control" id="edit-label" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="edit-credential-submit">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/vault.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "app/base_app.html" %}
+
+{% block title %}API Keys - AgentFlow{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <div class="small text-muted mb-1">Dashboard &gt; Settings &gt; API Keys</div>
+    <h2 class="h3 mb-0">API Keys <span class="badge bg-primary-subtle text-primary ms-2">{{ api_keys|length }}</span></h2>
+  </div>
+  <div>
+    <button
+      type="button"
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#create-key-modal"
+      {% if not can_create_api_keys %}disabled title="API access requires Pro plan or higher. Upgrade →"{% endif %}
+    >
+      <i class="bi bi-key me-1"></i>Generate New Key
+    </button>
+  </div>
+</div>
+
+{# ====== INFO CARD ====== #}
+<div class="alert alert-primary d-flex align-items-start gap-2 mb-4">
+  <i class="bi bi-key-fill mt-1"></i>
+  <div>
+    <strong>API keys allow you to access AgentFlow programmatically.</strong>
+    Treat API keys like passwords, never share them publicly or commit them to version control.
+    <a href="https://docs.agentflow.ai" target="_blank" rel="noopener" class="ms-1">API Documentation</a>
+  </div>
+</div>
+
+{# ====== UPGRADE PROMPT ====== #}
+{% if not can_create_api_keys %}
+  <div class="card border-warning shadow-sm mb-4">
+    <div class="card-body">
+      <h4 class="h6 text-warning mb-2">API Access requires Pro plan or higher</h4>
+      <p class="mb-3">Upgrade to Pro for ₹2,499/month to get full API access.</p>
+      <a href="/settings/billing" class="btn btn-warning">Upgrade to Pro →</a>
+    </div>
+  </div>
+{% endif %}
+
+{# ====== ONE TIME KEY ALERT CONTAINER ====== #}
+<div id="new-key-alert-container"></div>
+
+{# ====== API KEYS TABLE ====== #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0 pt-4">
+    <h4 class="h5 mb-0">Your API Keys</h4>
+  </div>
+  <div class="card-body pt-2">
+    <div class="table-responsive">
+      <table class="table align-middle" id="api-keys-table">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Key</th>
+            <th>Scopes</th>
+            <th>Created</th>
+            <th>Last Used</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key in api_keys %}
+            <tr id="api-key-row-{{ key.id }}" class="{% if not key.is_active %}text-decoration-line-through text-muted{% endif %}">
+              <td class="fw-semibold">{{ key.label }}</td>
+              <td>
+                <span class="badge text-bg-light border font-monospace">{{ key.key_prefix }}...</span>
+                <button class="btn btn-sm btn-link text-decoration-none" type="button" onclick="copyToClipboard('{{ key.key_prefix }}')" data-no-loading>Copy Prefix</button>
+              </td>
+              <td>
+                {% for scope in key.scopes_json %}
+                  {% if scope == 'read' %}<span class="badge text-bg-primary">read</span>{% endif %}
+                  {% if scope == 'write' %}<span class="badge text-bg-success">write</span>{% endif %}
+                  {% if scope == 'admin' %}<span class="badge text-bg-warning">admin</span>{% endif %}
+                {% endfor %}
+              </td>
+              <td>{{ key.created_at | timeago }}</td>
+              <td>{{ key.last_used | timeago if key.last_used else 'Never used' }}</td>
+              <td>{{ key.expires_at | to_ist if key.expires_at else 'Never' }}</td>
+              <td>
+                {% if key.is_active %}
+                  <span class="badge text-bg-success">Active</span>
+                {% else %}
+                  <span class="badge text-bg-danger">Revoked</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if key.is_active %}
+                  <button type="button" class="btn btn-sm btn-outline-danger revoke-api-key-btn" data-key-id="{{ key.id }}" data-loading-text="Revoking...">Revoke</button>
+                {% else %}
+                  <span class="small text-muted">No actions</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">No API keys created yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ====== CREATE KEY MODAL ====== #}
+<div class="modal fade" id="create-key-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="create-key-form" method="post" action="/settings/api-keys">
+        <div class="modal-header">
+          <h5 class="modal-title">Generate New API Key</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label" for="api-key-label">Label</label>
+            <input type="text" class="form-control" id="api-key-label" name="label" required maxlength="255" placeholder="e.g., Production App, My Script, Testing Key">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-block">Scopes</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="read" id="scope-read" name="scopes" checked>
+              <label class="form-check-label" for="scope-read">Read (access task status, outputs, workflows)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="write" id="scope-write" name="scopes" checked>
+              <label class="form-check-label" for="scope-write">Write (create and run tasks)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="admin" id="scope-admin" name="scopes">
+              <label class="form-check-label" for="scope-admin">Admin (manage team and billing, Enterprise only)</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-block">Expiry</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="expiry_option" id="expiry-never" value="never" checked>
+              <label class="form-check-label" for="expiry-never">Never</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="expiry_option" id="expiry-30" value="30">
+              <label class="form-check-label" for="expiry-30">30 days</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="expiry_option" id="expiry-90" value="90">
+              <label class="form-check-label" for="expiry-90">90 days</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="expiry_option" id="expiry-365" value="365">
+              <label class="form-check-label" for="expiry-365">1 year</label>
+            </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="expiry_option" id="expiry-custom" value="custom">
+              <label class="form-check-label" for="expiry-custom">Custom date</label>
+            </div>
+            <input type="date" class="form-control" id="api-key-custom-expiry" name="expires_at" disabled>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" data-loading-text="Generating key..." {% if not can_create_api_keys %}disabled{% endif %}>Generate Key</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== QUICK START ====== #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0 pt-4">
+    <h4 class="h5 mb-0">API Quick Start</h4>
+  </div>
+  <div class="card-body">
+    <ul class="nav nav-tabs" id="api-quickstart-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#quickstart-python" type="button" role="tab">Python</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#quickstart-curl" type="button" role="tab">cURL</button>
+      </li>
+    </ul>
+    <div class="tab-content border border-top-0 p-3" id="api-quickstart-content">
+      <div class="tab-pane fade show active" id="quickstart-python" role="tabpanel">
+<pre class="mb-0"><code>import requests
+
+api_key = "agf_xxxx..."
+response = requests.get(
+    "https://agentflow.ai/api/tasks",
+    headers={"Authorization": f"Bearer {api_key}"},
+    timeout=30,
+)
+print(response.json())</code></pre>
+      </div>
+      <div class="tab-pane fade" id="quickstart-curl" role="tabpanel">
+<pre class="mb-0"><code>curl -X GET "https://agentflow.ai/api/tasks" \
+  -H "Authorization: Bearer agf_xxxx..."</code></pre>
+      </div>
+    </div>
+    <p class="small text-muted mt-3 mb-0">Full API documentation available at <a href="https://docs.agentflow.ai" target="_blank" rel="noopener">docs.agentflow.ai</a>.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.canCreateApiKeys = {{ 'true' if can_create_api_keys else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

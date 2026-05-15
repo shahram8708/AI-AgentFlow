@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Platform Status - AgentFlow{% endblock %}
+
+{% block content %}
+{% set banner_class = 'bg-success-subtle border-success-subtle text-success-emphasis' %}
+{% set banner_icon = 'bi-check-circle-fill' %}
+{% if overall_status == 'Degraded Performance' %}
+  {% set banner_class = 'bg-warning-subtle border-warning-subtle text-warning-emphasis' %}
+  {% set banner_icon = 'bi-exclamation-circle-fill' %}
+{% elif overall_status == 'Partial Outage' %}
+  {% set banner_class = 'bg-danger-subtle border-danger-subtle text-danger-emphasis' %}
+  {% set banner_icon = 'bi-x-circle-fill' %}
+{% endif %}
+
+<div class="alert {{ banner_class }} border mb-4" role="alert">
+  <h2 class="h4 mb-0"><i class="bi {{ banner_icon }} me-2"></i>{{ overall_status }}</h2>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Components Status</h5></div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light"><tr><th>Component</th><th>Description</th><th>Status</th><th>Response</th></tr></thead>
+      <tbody>
+        {% for component in components %}
+          <tr>
+            <td class="fw-semibold">{{ component.name }}</td>
+            <td>{{ component.description }}</td>
+            <td>
+              <span class="badge {% if component.status == 'operational' %}text-bg-success{% elif component.status == 'degraded' %}text-bg-warning{% else %}text-bg-danger{% endif %}">
+                {{ component.status|replace('_', ' ')|title }}
+              </span>
+            </td>
+            <td>{{ component.response_ms if component.response_ms is not none else '-' }} ms</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Incident History</h5></div>
+  <div class="card-body">
+    {% for incident in incidents %}
+      <div class="border rounded p-3 mb-2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="fw-semibold">{{ incident.title }} - {{ incident.status }}</div>
+          <span class="badge text-bg-light border">{{ incident.date }}</span>
+        </div>
+        <div class="small text-muted">Affected: {{ incident.affected }} | Duration: {{ incident.duration }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Last 90 Days Uptime</h5></div>
+  <div class="card-body">
+    <div class="mb-2"><div class="d-flex justify-content-between small"><span>Web Application</span><span>99.96%</span></div><div class="progress"><div class="progress-bar bg-success" style="width:99.96%"></div></div></div>
+    <div class="mb-2"><div class="d-flex justify-content-between small"><span>API Service</span><span>99.92%</span></div><div class="progress"><div class="progress-bar bg-success" style="width:99.92%"></div></div></div>
+    <div class="mb-2"><div class="d-flex justify-content-between small"><span>Task Execution Engine</span><span>99.81%</span></div><div class="progress"><div class="progress-bar bg-success" style="width:99.81%"></div></div></div>
+    <div class="mb-0"><div class="d-flex justify-content-between small"><span>Database</span><span>99.98%</span></div><div class="progress"><div class="progress-bar bg-success" style="width:99.98%"></div></div></div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-2">Subscribe to Status Updates</h5>
+    <form method="post" action="/status" class="d-flex flex-wrap gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="email" class="form-control" style="max-width: 320px;" name="email" placeholder="you@example.com" required>
+      <button type="submit" class="btn btn-primary">Subscribe</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

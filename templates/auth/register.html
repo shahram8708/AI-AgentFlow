@@ -1,0 +1,482 @@
+{% extends 'base.html' %}
+
+{% block title %}Create your account - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .auth-register-wrap {
+    min-height: calc(100vh - 2rem);
+    display: flex;
+    align-items: stretch;
+    padding-top: 6.25rem;
+    padding-bottom: 2rem;
+  }
+
+  .register-layout {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: var(--card-shadow-deep);
+    background: #fff;
+  }
+
+  .register-benefits {
+    position: relative;
+    background: linear-gradient(140deg, #0f172a 0%, #113a8f 55%, #1a56db 100%);
+    color: #fff;
+    padding: 3rem 2.5rem;
+    overflow: hidden;
+  }
+
+  .register-benefits::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+    background-size: 16px 16px;
+    opacity: 0.28;
+    animation: bgShift 18s linear infinite;
+  }
+
+  .register-benefits > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .register-benefits h2 {
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+  }
+
+  .benefit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.875rem;
+  }
+
+  .benefit-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .benefit-list i {
+    color: #22c55e;
+    margin-top: 0.15rem;
+  }
+
+  .register-testimonial {
+    margin-top: 2rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 0.9rem;
+    padding: 1rem;
+  }
+
+  .register-testimonial p {
+    margin-bottom: 0.5rem;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .register-testimonial small {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .register-form-pane {
+    background: #fff;
+    padding: 2rem;
+  }
+
+  .auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    text-decoration: none;
+    margin-bottom: 1rem;
+  }
+
+  .auth-brand .brand-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .register-card {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .google-btn {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: #1f2937;
+    font-weight: 600;
+    padding: 0.7rem 1rem;
+    border-radius: 0.7rem;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .google-btn:hover {
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+    transform: translateY(-1px);
+    color: #111827;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .auth-divider::before,
+  .auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .auth-divider span {
+    margin: 0 0.65rem;
+  }
+
+  .password-wrap {
+    position: relative;
+  }
+
+  .toggle-password-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.95rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .strength-wrap {
+    margin-top: 0.65rem;
+  }
+
+  .strength-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .strength-bar span {
+    height: 6px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    transition: all 0.2s ease;
+  }
+
+  .strength-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .pw-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0.35rem 0 0;
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.83rem;
+  }
+
+  .pw-checklist li {
+    color: #64748b;
+  }
+
+  .pw-checklist li.valid {
+    color: #047857;
+  }
+
+  .pw-checklist li .mark {
+    width: 1rem;
+    display: inline-block;
+    font-weight: 700;
+  }
+
+  .auth-submit {
+    width: 100%;
+    border: 0;
+    border-radius: 0.75rem;
+    padding: 0.8rem 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+
+  .auth-submit:hover {
+    filter: brightness(1.05);
+  }
+
+  .small-note {
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin-top: 0.9rem;
+  }
+
+  @keyframes bgShift {
+    0% {
+      transform: translateX(0) translateY(0);
+    }
+
+    100% {
+      transform: translateX(-20px) translateY(-20px);
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .auth-register-wrap {
+      min-height: auto;
+      padding-top: 5.25rem;
+    }
+
+    .register-benefits {
+      display: none;
+    }
+
+    .register-form-pane {
+      padding: 1.4rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<section class="auth-register-wrap">
+  <div class="register-layout row g-0">
+    <aside class="col-lg-5 register-benefits d-none d-lg-flex flex-column justify-content-between">
+      <div>
+        <h2>Join 10,000 plus teams automating their work</h2>
+        <ul class="benefit-list">
+          <li><i class="bi bi-check-circle-fill"></i><span>481 AI automation task types</span></li>
+          <li><i class="bi bi-check-circle-fill"></i><span>No code required. Anyone can use it</span></li>
+          <li><i class="bi bi-check-circle-fill"></i><span>Start for free with no credit card required</span></li>
+        </ul>
+      </div>
+      <div class="register-testimonial">
+        <p>“AgentFlow replaced three disconnected tools and saved us nearly 14 hours every week.”</p>
+        <small>Priya Sharma, Operations Lead at Horizon Labs</small>
+      </div>
+    </aside>
+
+    <div class="col-12 col-lg-7 register-form-pane">
+      <div class="register-card">
+        <a href="{{ url_for('public.home') }}" class="auth-brand" aria-label="AgentFlow home">
+          <span class="brand-badge"><i class="bi bi-lightning-charge-fill"></i></span>
+          <span>AgentFlow</span>
+        </a>
+
+        <div class="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+          <h2 class="h3 fw-bold mb-0">Create your account</h2>
+          <a href="{{ url_for('auth.login') }}" class="small">Already have an account? Sign in →</a>
+        </div>
+
+        <a href="{{ url_for('auth.oauth_google') }}" class="google-btn mb-2" aria-label="Continue with Google">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/>
+            <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2C29.3 35.8 26.8 36.9 24 36.9c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.4 39.3 16.1 44 24 44z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4 5.5l.1-.1 6.2 5.2C37 39 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </a>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <form method="post" action="{{ url_for('auth.register_post') }}" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <div class="form-floating mb-2">
+                {{ form.first_name(class='form-control' + (' is-invalid' if form.first_name.errors else ''), placeholder='First Name') }}
+                <label for="{{ form.first_name.id }}">First Name</label>
+                {% for error in form.first_name.errors %}
+                  <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating mb-2">
+                {{ form.last_name(class='form-control' + (' is-invalid' if form.last_name.errors else ''), placeholder='Last Name') }}
+                <label for="{{ form.last_name.id }}">Last Name</label>
+                {% for error in form.last_name.errors %}
+                  <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="form-floating mb-2">
+            {{ form.email(class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='Email Address') }}
+            <label for="{{ form.email.id }}">Email Address</label>
+            {% for error in form.email.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="form-floating mb-1 password-wrap">
+            {{ form.password(class='form-control pe-5' + (' is-invalid' if form.password.errors else ''), placeholder='Password', id='register-password') }}
+            <label for="register-password">Password</label>
+            <button type="button" class="toggle-password-btn" data-toggle-target="register-password" aria-label="Show password" data-no-loading>
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% for error in form.password.errors %}
+            <div class="invalid-feedback d-block mb-1">{{ error }}</div>
+          {% endfor %}
+
+          <div class="strength-wrap" id="strength-wrap">
+            <div class="strength-bar" id="strength-bar">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="strength-label" id="strength-label">Weak</div>
+            <ul class="pw-checklist" id="pw-checklist">
+              <li data-rule="length"><span class="mark">✗</span> Min 8 characters</li>
+              <li data-rule="upper"><span class="mark">✗</span> Uppercase letter</li>
+              <li data-rule="number"><span class="mark">✗</span> Number</li>
+              <li data-rule="special"><span class="mark">✗</span> Special character</li>
+            </ul>
+          </div>
+
+          <div class="form-floating mt-2 mb-2 password-wrap">
+            {{ form.confirm_password(class='form-control pe-5' + (' is-invalid' if form.confirm_password.errors else ''), placeholder='Confirm Password', id='register-confirm-password') }}
+            <label for="register-confirm-password">Confirm Password</label>
+            <button type="button" class="toggle-password-btn" data-toggle-target="register-confirm-password" aria-label="Show password" data-no-loading>
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% for error in form.confirm_password.errors %}
+            <div class="invalid-feedback d-block mb-2">{{ error }}</div>
+          {% endfor %}
+
+          <div class="form-check mb-2">
+            {{ form.agree_terms(class='form-check-input' + (' is-invalid' if form.agree_terms.errors else '')) }}
+            <label class="form-check-label" for="{{ form.agree_terms.id }}">
+              I agree to the <a href="{{ url_for('public.home') }}" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ url_for('public.home') }}" target="_blank" rel="noopener">Privacy Policy</a>
+            </label>
+            {% for error in form.agree_terms.errors %}
+              <div class="invalid-feedback d-block">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <button type="submit" class="auth-submit" data-loading-text="Creating your account...">Create Account</button>
+
+          <p class="small-note">
+            By creating an account, you agree to receive product updates and marketing emails. Unsubscribe anytime.
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function updatePasswordStrength() {
+      var input = document.getElementById("register-password");
+      if (!input) {
+        return;
+      }
+      var value = input.value || "";
+      var score = 0;
+      var checks = {
+        length: value.length >= 8,
+        upper: /[A-Z]/.test(value),
+        number: /\d/.test(value),
+        special: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(value)
+      };
+
+      Object.keys(checks).forEach(function (key) {
+        if (checks[key]) {
+          score += 1;
+        }
+      });
+
+      var bars = document.querySelectorAll("#strength-bar span");
+      var label = document.getElementById("strength-label");
+      var colors = ["#ef4444", "#f97316", "#eab308", "#16a34a"];
+      bars.forEach(function (bar, index) {
+        bar.style.background = index < score ? colors[Math.max(score - 1, 0)] : "#e5e7eb";
+      });
+
+      var text = "Weak";
+      if (score === 2) {
+        text = "Fair";
+      }
+      if (score === 3) {
+        text = "Good";
+      }
+      if (score >= 4) {
+        text = "Strong";
+      }
+      label.textContent = text;
+
+      document.querySelectorAll("#pw-checklist li").forEach(function (item) {
+        var rule = item.getAttribute("data-rule");
+        var passed = !!checks[rule];
+        item.classList.toggle("valid", passed);
+        var mark = item.querySelector(".mark");
+        if (mark) {
+          mark.textContent = passed ? "✓" : "✗";
+        }
+      });
+    }
+
+    document.querySelectorAll(".toggle-password-btn").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var targetId = button.getAttribute("data-toggle-target");
+        var input = document.getElementById(targetId);
+        if (!input) {
+          return;
+        }
+        var icon = button.querySelector("i");
+        var isPassword = input.type === "password";
+        input.type = isPassword ? "text" : "password";
+        if (icon) {
+          icon.className = isPassword ? "bi bi-eye-slash" : "bi bi-eye";
+        }
+      });
+    });
+
+    var passwordInput = document.getElementById("register-password");
+    if (passwordInput) {
+      passwordInput.addEventListener("keyup", updatePasswordStrength);
+      passwordInput.addEventListener("change", updatePasswordStrength);
+      updatePasswordStrength();
+    }
+  })();
+</script>
+{% endblock %}

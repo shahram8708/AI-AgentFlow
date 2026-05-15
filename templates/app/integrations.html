@@ -1,0 +1,360 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state %}
+
+{% block title %}Integrations - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .integration-stat-chip {
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: #f8fbff;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .integration-filter-pill {
+    border-radius: 999px;
+  }
+
+  .integration-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: 0 6px 20px rgba(26, 86, 219, 0.2);
+  }
+
+  .integration-card {
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+  }
+
+  .integration-card.connected {
+    border-left: 3px solid #198754;
+  }
+
+  .integration-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .integrations-empty {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Integrations</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h2 class="fw-bold mb-0">Integrations Hub</h2>
+      <span class="badge bg-primary-subtle text-primary">{{ total_count }}</span>
+    </div>
+    <p class="text-muted mb-0">Connect your favorite tools to power your AI automations</p>
+  </div>
+  <div>
+    <span class="badge rounded-pill text-bg-success px-3 py-2">{{ connected_count }} connected</span>
+  </div>
+</div>
+
+{# ====== STATS BAR ====== #}
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <span class="integration-stat-chip">{{ total_count }} Available</span>
+  <span class="integration-stat-chip">{{ connected_count }} Connected</span>
+  <span class="integration-stat-chip">{{ categories|length }} Categories</span>
+  <span class="integration-stat-chip">Free to connect</span>
+</div>
+
+{# ====== FILTER BAR ====== #}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-center mb-2">
+      <div class="col-lg-4">
+        <input id="integration-search" type="search" class="form-control" placeholder="Search integrations..." value="{{ search_term }}">
+      </div>
+      <div class="col-lg-4">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Status filter">
+          <button type="button" class="btn {% if selected_status == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %} status-filter-btn" data-status="all" data-selection="true">All</button>
+          <button type="button" class="btn {% if selected_status == 'connected' %}btn-primary{% else %}btn-outline-secondary{% endif %} status-filter-btn" data-status="connected" data-selection="true">Connected</button>
+          <button type="button" class="btn {% if selected_status == 'not_connected' %}btn-primary{% else %}btn-outline-secondary{% endif %} status-filter-btn" data-status="not_connected" data-selection="true">Not Connected</button>
+        </div>
+      </div>
+      <div class="col-lg-4 text-lg-end">
+        <select id="integration-sort" class="form-select form-select-sm d-inline-block" style="max-width: 220px;">
+          <option value="alphabetical">Alphabetical</option>
+          <option value="category">Category</option>
+          <option value="popular">Most Popular</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2" id="category-filter-wrap">
+      <button type="button" class="btn btn-sm {% if selected_category == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %} integration-filter-pill category-filter-btn" data-category="all" data-selection="true">
+        All
+        <span class="badge bg-light text-dark ms-1">{{ category_counts.values() | sum }}</span>
+      </button>
+      {% for category in categories %}
+        <button type="button" class="btn btn-sm {% if selected_category == category %}btn-primary{% else %}btn-outline-secondary{% endif %} integration-filter-pill category-filter-btn" data-category="{{ category|lower }}" data-selection="true">
+          {{ category }}
+          <span class="badge bg-light text-dark ms-1">{{ category_counts.get(category, 0) }}</span>
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ====== INTEGRATIONS GRID ====== #}
+<div id="integration-grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3">
+  {% for integration in integrations %}
+    {% set is_connected = integration.service_name in connected_integrations %}
+    {% set icon_class = 'bi-plug' %}
+    {% set icon_color = '#1a56db' %}
+
+    {% if integration.service_name in ['google_workspace', 'gmail', 'google_drive', 'google_calendar', 'google_sheets'] %}
+      {% set icon_class = 'bi-google' %}
+      {% set icon_color = '#2563eb' %}
+    {% elif integration.service_name == 'github' %}
+      {% set icon_class = 'bi-github' %}
+      {% set icon_color = '#111827' %}
+    {% elif integration.service_name == 'slack' %}
+      {% set icon_class = 'bi-slack' %}
+      {% set icon_color = '#7c3aed' %}
+    {% elif integration.service_name in ['aws_s3', 'dropbox', 'onedrive'] %}
+      {% set icon_class = 'bi-cloud-arrow-up' %}
+      {% set icon_color = '#0f766e' %}
+    {% elif integration.category == 'CRM' %}
+      {% set icon_class = 'bi-people' %}
+      {% set icon_color = '#0ea5e9' %}
+    {% elif integration.category == 'Finance' %}
+      {% set icon_class = 'bi-cash-coin' %}
+      {% set icon_color = '#16a34a' %}
+    {% elif integration.category == 'AI' %}
+      {% set icon_class = 'bi-stars' %}
+      {% set icon_color = '#2563eb' %}
+    {% elif integration.category == 'Communication' %}
+      {% set icon_class = 'bi-chat-dots' %}
+      {% set icon_color = '#7c3aed' %}
+    {% elif integration.category == 'Development' %}
+      {% set icon_class = 'bi-code-square' %}
+      {% set icon_color = '#1f2937' %}
+    {% endif %}
+
+    <div class="col integration-item"
+      data-category="{{ integration.category|lower }}"
+      data-name="{{ integration.display_name|lower }}"
+      data-connected="{{ 'true' if is_connected else 'false' }}"
+      data-popularity="{{ 100 if is_connected else 0 }}">
+      <div class="card h-100 integration-card {% if is_connected %}connected{% endif %}">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="integration-icon-circle" style="background: {{ icon_color }};">
+              <i class="bi {{ icon_class }}"></i>
+            </span>
+            <span class="badge text-bg-light border text-muted">{{ integration.category }}</span>
+          </div>
+
+          <h6 class="integration-name fw-semibold mb-1" title="{{ integration.display_name }}">{{ integration.display_name }}</h6>
+          <div class="small text-muted mb-2">{{ integration.description or 'Connect this service to automate workflows.' }}</div>
+
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <span class="badge rounded-pill text-bg-secondary">{{ integration.auth_type|upper }}</span>
+            {% if is_connected %}
+              <span class="badge text-bg-success">Connected ✓</span>
+            {% else %}
+              <span class="small text-muted">Not connected</span>
+            {% endif %}
+          </div>
+
+          <div class="mt-auto d-flex align-items-center justify-content-between gap-2">
+            <a class="btn btn-sm btn-outline-primary flex-grow-1" href="/integrations/{{ integration.id }}/setup">
+              {% if is_connected %}Manage{% else %}Connect →{% endif %}
+            </a>
+            {% if is_connected %}
+              <button type="button" class="btn btn-sm btn-outline-danger disconnect-integration-btn" data-id="{{ integration.id }}" data-confirm="Disconnect this integration?">Disconnect</button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div id="integrations-empty" class="integrations-empty mt-4">
+  {{ empty_state('bi-plug', 'No integrations found', 'Try different search or category filter', '#', 'Clear Filters') }}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function applyFilters() {
+      const searchInput = document.getElementById("integration-search");
+      const sortSelect = document.getElementById("integration-sort");
+      const cards = Array.from(document.querySelectorAll(".integration-item"));
+      const activeCategoryBtn = document.querySelector(".category-filter-btn.btn-primary");
+      const activeStatusBtn = document.querySelector(".status-filter-btn.btn-primary");
+      const emptyState = document.getElementById("integrations-empty");
+      const grid = document.getElementById("integration-grid");
+
+      const query = String(searchInput ? searchInput.value : "").trim().toLowerCase();
+      const category = activeCategoryBtn ? activeCategoryBtn.dataset.category : "all";
+      const status = activeStatusBtn ? activeStatusBtn.dataset.status : "all";
+
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const name = card.dataset.name || "";
+        const cardCategory = card.dataset.category || "";
+        const connected = card.dataset.connected === "true";
+
+        const matchesSearch = !query || name.indexOf(query) >= 0;
+        const matchesCategory = category === "all" || cardCategory === category;
+        const matchesStatus = status === "all" || (status === "connected" ? connected : !connected);
+
+        const visible = matchesSearch && matchesCategory && matchesStatus;
+        card.style.display = visible ? "" : "none";
+        if (visible) {
+          visibleCount += 1;
+        }
+      });
+
+      if (sortSelect) {
+        const mode = sortSelect.value;
+        const sorted = cards.slice().sort((a, b) => {
+          if (mode === "category") {
+            return (a.dataset.category || "").localeCompare(b.dataset.category || "") ||
+              (a.dataset.name || "").localeCompare(b.dataset.name || "");
+          }
+          if (mode === "popular") {
+            return Number(b.dataset.popularity || 0) - Number(a.dataset.popularity || 0) ||
+              (a.dataset.name || "").localeCompare(b.dataset.name || "");
+          }
+          return (a.dataset.name || "").localeCompare(b.dataset.name || "");
+        });
+        sorted.forEach((card) => {
+          grid.appendChild(card);
+        });
+      }
+
+      if (emptyState) {
+        emptyState.style.display = visibleCount === 0 ? "block" : "none";
+      }
+    }
+
+    async function disconnectIntegration(integrationId, button) {
+      button.disabled = true;
+      try {
+        const response = await fetch(`/integrations/${integrationId}`, {
+          method: "DELETE",
+          headers: {
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin"
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "Failed to disconnect integration");
+        }
+        if (window.showToast) {
+          window.showToast("Integration disconnected", "success");
+        }
+        window.location.reload();
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast(error.message || "Could not disconnect integration", "danger");
+        }
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const searchInput = document.getElementById("integration-search");
+      const sortSelect = document.getElementById("integration-sort");
+
+      searchInput && searchInput.addEventListener("input", applyFilters);
+      sortSelect && sortSelect.addEventListener("change", applyFilters);
+
+      document.querySelectorAll(".category-filter-btn").forEach((button) => {
+        button.addEventListener("click", function () {
+          document.querySelectorAll(".category-filter-btn").forEach((btn) => {
+            btn.classList.remove("btn-primary");
+            btn.classList.add("btn-outline-secondary");
+          });
+          button.classList.remove("btn-outline-secondary");
+          button.classList.add("btn-primary");
+          applyFilters();
+        });
+      });
+
+      document.querySelectorAll(".status-filter-btn").forEach((button) => {
+        button.addEventListener("click", function () {
+          document.querySelectorAll(".status-filter-btn").forEach((btn) => {
+            btn.classList.remove("btn-primary");
+            btn.classList.add("btn-outline-secondary");
+          });
+          button.classList.remove("btn-outline-secondary");
+          button.classList.add("btn-primary");
+          applyFilters();
+        });
+      });
+
+      document.addEventListener("click", function (event) {
+        const disconnectBtn = event.target.closest(".disconnect-integration-btn");
+        if (!disconnectBtn) {
+          return;
+        }
+
+        if (disconnectBtn.dataset.confirmed !== "true") {
+          return;
+        }
+
+        disconnectBtn.dataset.confirmed = "false";
+        const integrationId = disconnectBtn.dataset.id;
+        if (!integrationId) {
+          return;
+        }
+
+        disconnectIntegration(integrationId, disconnectBtn);
+      });
+
+      const clearBtn = document.querySelector("#integrations-empty .btn");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", function (event) {
+          event.preventDefault();
+          if (searchInput) {
+            searchInput.value = "";
+          }
+          const allCategoryBtn = document.querySelector('.category-filter-btn[data-category="all"]');
+          const allStatusBtn = document.querySelector('.status-filter-btn[data-status="all"]');
+          allCategoryBtn && allCategoryBtn.click();
+          allStatusBtn && allStatusBtn.click();
+          applyFilters();
+        });
+      }
+
+      applyFilters();
+    });
+  })();
+</script>
+{% endblock %}

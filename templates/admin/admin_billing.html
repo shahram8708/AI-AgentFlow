@@ -1,0 +1,78 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Admin Billing - AgentFlow{% endblock %}
+
+{% block admin_content %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Current MRR</div><div class="display-6 fw-bold">₹{{ mrr|format_inr }}</div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Total Revenue</div><div class="display-6 fw-bold">₹{{ total_revenue|format_inr }}</div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">ARPU</div><div class="display-6 fw-bold">₹{{ arpu|format_inr }}</div></div></div></div>
+  <div class="col-lg-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="small text-muted">Churn Rate</div><div class="display-6 fw-bold {% if churn_rate > 8 %}text-danger{% endif %}">{{ churn_rate }}%</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">MRR Over Time</h5></div>
+      <div class="card-body"><canvas id="admin-mrr-chart" height="140"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Plan Distribution</h5></div>
+      <div class="card-body"><canvas id="admin-plan-distribution-chart" height="220"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Recent Payments</h5></div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Organization</th><th>Plan</th><th>Amount</th><th>Payment Date</th><th>Razorpay Payment ID</th><th>Invoice</th></tr></thead>
+      <tbody>
+        {% for invoice in recent_payments %}
+          <tr>
+            <td>{{ invoice.organization.name if invoice.organization else '-' }}</td>
+            <td>{{ invoice.subscription.plan.name if invoice.subscription and invoice.subscription.plan else '-' }}</td>
+            <td>₹{{ ((invoice.amount_paise or 0) / 100)|round(0)|int|format_inr }}</td>
+            <td>{{ invoice.paid_at|to_ist if invoice.paid_at else invoice.created_at|to_ist }}</td>
+            <td><span title="{{ invoice.razorpay_payment_id or '' }}">{{ (invoice.razorpay_payment_id or '')[-12:] }}</span></td>
+            <td><a href="/billing/invoices/{{ invoice.id }}/download" class="small text-decoration-none">Download</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No payments found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Failed Payments (Last 30 Days)</h5></div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Organization</th><th>Status</th><th>Amount</th><th>Created</th></tr></thead>
+      <tbody>
+        {% for invoice in failed_payments %}
+          <tr>
+            <td>{{ invoice.organization.name if invoice.organization else '-' }}</td>
+            <td><span class="badge text-bg-warning">{{ invoice.status|title }}</span></td>
+            <td>₹{{ ((invoice.amount_paise or 0) / 100)|round(0)|int|format_inr }}</td>
+            <td>{{ invoice.created_at|to_ist }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-3">No failed payments in last 30 days.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="admin-billing-data" data-mrr='{{ mrr_by_month|tojson }}' data-plan='{{ plan_distribution|tojson }}'></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

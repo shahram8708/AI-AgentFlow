@@ -1,0 +1,76 @@
+{% set path = request.path %}
+
+<nav class="navbar navbar-expand-lg public-navbar" id="public-navbar-marketing">
+  <div class="container">
+    <a class="navbar-brand public-navbar-brand" href="{{ url_for('public.home') }}" aria-label="AgentFlow home">
+      <span class="brand-badge"><i class="bi bi-lightning-charge-fill"></i></span>
+      <span>AgentFlow</span>
+    </a>
+
+    <button
+      class="navbar-toggler border-0"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#publicNavMenu"
+      aria-controls="publicNavMenu"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse public-nav-collapse" id="publicNavMenu">
+      <div class="d-lg-none d-flex align-items-center justify-content-between w-100 mb-4">
+        <span class="fw-bold fs-5">Menu</span>
+        <button
+          class="btn btn-link text-decoration-none p-0 text-body"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#publicNavMenu"
+          aria-label="Close menu"
+        >
+          <i class="bi bi-x-lg fs-4"></i>
+        </button>
+      </div>
+
+      <ul class="navbar-nav mx-auto mb-3 mb-lg-0 gap-lg-2">
+        <li class="nav-item">
+          <a class="nav-link {% if path == '/features' %}active{% endif %}" href="{{ url_for('public.features') }}">Features</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if path == '/use-cases' or path.startswith('/industry/') %}active{% endif %}" href="{{ url_for('public.use_cases') }}">Use Cases</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if path == '/pricing' %}active{% endif %}" href="{{ url_for('public.pricing') }}">Pricing</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if path == '/blog' or path.startswith('/blog/') %}active{% endif %}" href="{{ url_for('public.blog') }}">Blog</a>
+        </li>
+      </ul>
+
+      <div class="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center gap-2 public-nav-cta">
+        <a class="btn btn-outline-primary public-signin-btn" href="{{ url_for('auth.login') }}">Sign In</a>
+        <a class="btn btn-primary btn-pill public-start-btn" href="{{ url_for('auth.register') }}">Start Free</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+  (function () {
+    document.body.classList.add("public-layout");
+    var collapseEl = document.getElementById("publicNavMenu");
+    if (!collapseEl) {
+      return;
+    }
+    collapseEl.querySelectorAll("a.nav-link, .public-nav-cta a").forEach(function (link) {
+      link.addEventListener("click", function () {
+        if (window.innerWidth >= 992) {
+          return;
+        }
+        var instance = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+        instance.hide();
+      });
+    });
+  })();
+</script>

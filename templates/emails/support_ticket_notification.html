@@ -1,0 +1,20 @@
+{% extends 'emails/base_email.html' %}
+
+{% block email_content %}
+  <h1 style="margin:0 0 10px 0;font-size:24px;line-height:1.3;color:#0f172a;">New Support Ticket Created</h1>
+  <p style="margin:0 0 18px 0;color:#475569;">A new support request was submitted by a platform user.</p>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
+    <tr><td style="padding:4px 0;"><strong>Ticket ID:</strong> #{{ (ticket.id|string)[:8]|upper }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Subject:</strong> {{ ticket.subject }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Priority:</strong> {{ ticket.priority|title }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Status:</strong> {{ ticket.status|replace('_', ' ')|title }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>User:</strong> {{ user.get_full_name() }} ({{ user.email }})</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Organization:</strong> {{ organization.name }}</td></tr>
+    <tr><td style="padding:4px 0;"><strong>Created:</strong> {{ ticket.created_at }}</td></tr>
+  </table>
+
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;white-space:pre-wrap;">
+    {{ ticket.description }}
+  </div>
+{% endblock %}

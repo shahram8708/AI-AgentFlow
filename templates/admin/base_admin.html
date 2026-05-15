@@ -1,0 +1,29 @@
+{% extends "app/base_app.html" %}
+
+{% block app_content %}
+<div class="card border-danger-subtle shadow-sm mb-4">
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <span class="badge text-bg-danger">Admin Panel</span>
+      <a class="btn btn-sm {% if request.path == '/admin/' or request.path == '/admin' %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin">Overview</a>
+      <a class="btn btn-sm {% if request.path.startswith('/admin/users') %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin/users">Users</a>
+      <a class="btn btn-sm {% if request.path.startswith('/admin/orgs') %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin/orgs">Organizations</a>
+      <a class="btn btn-sm {% if request.path.startswith('/admin/flags') %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin/flags">Feature Flags</a>
+      <a class="btn btn-sm {% if request.path.startswith('/admin/billing') %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin/billing">Billing</a>
+      <a class="btn btn-sm {% if request.path.startswith('/admin/system') %}btn-danger{% else %}btn-outline-danger{% endif %}" href="/admin/system">System Health</a>
+    </div>
+  </div>
+</div>
+
+{% if session.get('admin_impersonating_user_id') %}
+  <div class="alert alert-warning d-flex justify-content-between align-items-center sticky-top" style="z-index: 1020;">
+    <div><strong>Impersonation:</strong> You are impersonating {{ current_user.get_full_name() }}.</div>
+    <form method="post" action="/admin/return-impersonation" class="mb-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-sm btn-dark">Return to Admin</button>
+    </form>
+  </div>
+{% endif %}
+
+{% block admin_content %}{% endblock %}
+{% endblock %}

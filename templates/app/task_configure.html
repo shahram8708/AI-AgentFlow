@@ -1,0 +1,322 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}Configure Task - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .task-config-header .badge {
+    font-weight: 500;
+  }
+
+  .task-info-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .template-load-item + .template-load-item {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .workflow-name-wrap {
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    max-height: 0;
+  }
+
+  .workflow-name-wrap.open {
+    max-height: 120px;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/tasks/new" class="text-decoration-none">Tasks</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ task_config.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="task-config-header d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+  <div>
+    <h3 class="fw-bold mb-1">{{ task_config.name }}</h3>
+    <p class="text-muted mb-0">{{ task_config.description }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <span class="badge text-bg-light border">~{{ (task_config.estimated_seconds // 60) if task_config.estimated_seconds else 4 }} min</span>
+    {% if task_config.requires_web_search %}
+      <span class="badge bg-primary-subtle text-primary border">
+        <i class="bi bi-globe2 me-1"></i>
+        Uses web search
+      </span>
+    {% endif %}
+    <span class="badge text-bg-dark text-capitalize">{{ task_config.difficulty }}</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# ====== LEFT COLUMN: FORM ====== #}
+  <div class="col-lg-8">
+    <form method="POST" action="/tasks/run" id="task-config-form" class="card">
+      <div class="card-body p-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="task_type" value="{{ task_type }}">
+
+        {% if field_errors %}
+          <div class="alert alert-danger">
+            <div class="fw-semibold mb-1">Please correct the following:</div>
+            <ul class="mb-0 ps-3">
+              {% for error in field_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {# ====== DYNAMIC INPUT FIELDS ====== #}
+        {% for field in task_config.input_fields %}
+          <div class="mb-4" data-field-container="{{ field.name }}">
+            <label class="form-label fw-semibold" for="{{ field.name }}">
+              {{ field.label }}
+              {% if field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+
+            {% if field.type == 'textarea' %}
+              <textarea
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                rows="4"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+                {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
+                {% if field.min_length %}minlength="{{ field.min_length }}" data-min-length="{{ field.min_length }}"{% endif %}
+              >{{ request.form.get(field.name, '') }}</textarea>
+            {% elif field.type == 'text' %}
+              <input
+                type="text"
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ request.form.get(field.name, '') }}"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+                {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
+                {% if field.min_length %}minlength="{{ field.min_length }}" data-min-length="{{ field.min_length }}"{% endif %}
+              >
+            {% elif field.type == 'select' %}
+              <select
+                class="form-select"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                {% if field.required %}required{% endif %}
+              >
+                {% if not field.required %}
+                  <option value="">Select an option</option>
+                {% endif %}
+                {% set selected_value = request.form.get(field.name, field.get('default', '')) %}
+                {% for option in field.options %}
+                  <option
+                    value="{{ option.value }}"
+                    {% if option.value == selected_value %}selected{% endif %}
+                  >
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
+            {% elif field.type == 'checkboxes' %}
+              {% set checked_values = request.form.getlist(field.name) %}
+              {% for option in field.options %}
+                {% set checkbox_id = field.name ~ '_' ~ option.value|replace(' ', '_') %}
+                <div class="form-check mb-1">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="{{ field.name }}"
+                    value="{{ option.value }}"
+                    id="{{ checkbox_id }}"
+                    data-required-group="{{ field.name if field.required else '' }}"
+                    {% if option.value in checked_values %}checked{% endif %}
+                  >
+                  <label class="form-check-label" for="{{ checkbox_id }}">{{ option.label }}</label>
+                </div>
+              {% endfor %}
+            {% elif field.type == 'number' %}
+              <input
+                type="number"
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ request.form.get(field.name, '') }}"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+              >
+            {% elif field.type == 'url' %}
+              <input
+                type="url"
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ request.form.get(field.name, '') }}"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+              >
+            {% elif field.type == 'email' %}
+              <input
+                type="email"
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ request.form.get(field.name, '') }}"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+              >
+            {% else %}
+              <input
+                type="text"
+                class="form-control"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ request.form.get(field.name, '') }}"
+                placeholder="{{ field.placeholder or '' }}"
+                {% if field.required %}required{% endif %}
+              >
+            {% endif %}
+
+            {% if field.help_text %}
+              <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+
+        {# ====== PROJECT ASSIGNMENT ====== #}
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="project_id">Assign to Project (optional)</label>
+          <select name="project_id" id="project_id" class="form-select">
+            <option value="">No project</option>
+            {% for project in projects %}
+              <option value="{{ project.id }}" {% if request.form.get('project_id') == project.id|string %}selected{% endif %}>{{ project.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# ====== KNOWLEDGE BASE CONTEXT ====== #}
+        <div class="mb-4 border rounded p-3">
+          <button class="btn btn-link p-0 text-decoration-none fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#knowledge-context-collapse" aria-expanded="false">
+            Add Knowledge Base Context (optional)
+          </button>
+          <div class="collapse mt-3" id="knowledge-context-collapse">
+            {% if knowledge_entries %}
+              <div class="small text-muted mb-2">Selected documents will be available to the AI agent as additional context.</div>
+              {% for entry in knowledge_entries %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="checkbox" name="knowledge_entry_ids" value="{{ entry.id }}" id="kb_{{ entry.id }}">
+                  <label class="form-check-label" for="kb_{{ entry.id }}">{{ entry.title }}</label>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="text-muted small">No knowledge base entries available for this organization.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {# ====== SAVE AS WORKFLOW ====== #}
+        <div class="mb-4 border rounded p-3">
+          <button class="btn btn-link p-0 text-decoration-none fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#save-workflow-collapse" aria-expanded="false">
+            Save this configuration as a workflow
+          </button>
+          <div class="collapse mt-3" id="save-workflow-collapse">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="save-workflow-toggle" name="save_as_workflow" value="1">
+              <label class="form-check-label" for="save-workflow-toggle">Save as workflow after running</label>
+            </div>
+            <div id="workflow-name-wrap" class="workflow-name-wrap">
+              <label class="form-label" for="workflow_name">Workflow Name</label>
+              <input type="text" class="form-control" id="workflow_name" name="workflow_name" maxlength="120" placeholder="e.g., Weekly Competitor Intelligence Run">
+            </div>
+          </div>
+        </div>
+
+        {# ====== ACTION BUTTONS ====== #}
+        <div class="d-flex flex-column flex-md-row gap-2">
+          <button type="submit" class="btn btn-primary btn-lg flex-fill" id="run-task-button" data-loading-text="Launching AI agent...">Run Task →</button>
+          <button type="button" class="btn btn-outline-secondary btn-lg">Save Draft</button>
+        </div>
+        <div class="small text-muted mt-2" id="estimated-time-dynamic">
+          Estimated time: ~{{ (task_config.estimated_seconds // 60) if task_config.estimated_seconds else 4 }} minutes • {{ 'Uses web search' if task_config.requires_web_search else 'No web search required' }}
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ====== RIGHT COLUMN: SIDEBAR ====== #}
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header bg-white">
+        <h6 class="mb-0">Task Info</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="badge" style="background: {{ category_colors.get(task_config.category, '#64748b') }}; color: #fff;">{{ task_config.category_display }}</span>
+          <span class="small text-muted">{{ task_config.id }}</span>
+        </div>
+        <div class="mb-2">
+          {% if task_config.execution_strategy == 'research_grounded' %}
+            <span class="badge bg-primary-subtle text-primary border">AI + Web Search</span>
+          {% elif task_config.execution_strategy == 'code' %}
+            <span class="badge bg-success-subtle text-success border">AI Code</span>
+          {% else %}
+            <span class="badge bg-info-subtle text-info border">AI Writing</span>
+          {% endif %}
+        </div>
+        <ol class="small text-muted task-info-list mb-0 ps-3">
+          {% for step in task_config.typical_steps %}
+            <li>{{ step }}</li>
+          {% endfor %}
+        </ol>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-white"><h6 class="mb-0">Estimated Output</h6></div>
+      <div class="card-body small text-muted">
+        <div class="mb-2"><span class="fw-semibold text-dark">Output format:</span> {{ task_config.output_format|replace('_', ' ')|title }}</div>
+        <div><span class="fw-semibold text-dark">Timeout:</span> Up to {{ (task_config.timeout_seconds // 60) if task_config.timeout_seconds else 5 }} minutes</div>
+      </div>
+    </div>
+
+    {% if matching_templates %}
+      <div class="card mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0">Use a Template</h6></div>
+        <div class="card-body">
+          {% for template in matching_templates %}
+            <div class="template-load-item">
+              <div class="fw-semibold small">{{ template.name }}</div>
+              <div class="text-muted small mb-2">{{ template.steps_json|length }} steps</div>
+              <button type="button" class="btn btn-sm btn-outline-primary load-template-btn" data-template-id="{{ template.id }}">Load Template →</button>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header bg-white"><h6 class="mb-0">Tips for better results</h6></div>
+      <div class="card-body small text-muted">
+        <div class="mb-2">Be specific with objectives, inputs, and constraints.</div>
+        <div class="mb-2">Include context and reference details when possible.</div>
+        <div>Use the depth and output options to match your required detail level.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/task_configure.js') }}"></script>
+{% endblock %}

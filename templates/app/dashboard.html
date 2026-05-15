@@ -1,0 +1,424 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, output_card, plan_badge, status_badge, usage_bar %}
+
+{% block title %}Dashboard - AgentFlow{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== SECTION 1: WELCOME BANNER + QUICK ACTIONS ====== #}
+{% if show_onboarding %}
+  <div class="welcome-onboarding-banner mb-4" id="welcome-onboarding-banner">
+    <button type="button" class="btn-close btn-close-white onboarding-dismiss-btn" id="dismiss-onboarding-banner" aria-label="Dismiss"></button>
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+      <div>
+        <h4 class="text-white mb-1">Welcome to AgentFlow, {{ current_user.first_name }}!</h4>
+        <p class="text-white-50 mb-0">Complete your setup to get the most out of your account.</p>
+      </div>
+      <a href="/onboarding" class="btn btn-light btn-pill fw-semibold">Start Onboarding <i class="bi bi-arrow-right"></i></a>
+    </div>
+  </div>
+{% endif %}
+
+<div class="row g-2 g-lg-3 mb-4">
+  <div class="col-xl-4 col-lg-6">
+    <a href="/tasks/new" class="btn btn-primary w-100 py-3 fw-semibold d-flex align-items-center justify-content-center gap-2 quick-action-primary">
+      <i class="bi bi-plus-circle"></i>
+      <span>Launch New Task</span>
+    </a>
+  </div>
+  <div class="col-xl-2 col-lg-6 col-md-4">
+    <a href="/workflows/new" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+      <i class="bi bi-diagram-3"></i>
+      <span>New Workflow</span>
+    </a>
+  </div>
+  <div class="col-xl-3 col-lg-6 col-md-4">
+    <a href="/templates" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+      <i class="bi bi-grid-3x3-gap"></i>
+      <span>Browse Templates</span>
+    </a>
+  </div>
+  <div class="col-xl-3 col-lg-6 col-md-4">
+    <a href="/outputs" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+      <i class="bi bi-archive"></i>
+      <span>View Outputs</span>
+    </a>
+  </div>
+</div>
+
+{# ====== SECTION 2: STATS CARDS ====== #}
+<div class="row g-3 mb-2" id="dashboard-stats-row">
+  <div class="col-xl-3 col-md-6">
+    <div class="card h-100 hover-lift dashboard-stat-card">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="display-6 fw-bold counter-animate" id="stat-tasks-today" data-target="{{ tasks_completed_today }}">{{ tasks_completed_today }}</div>
+            <p class="mb-1 text-muted">Completed Today</p>
+            <div class="small text-success">↑ {{ tasks_completed_this_week }} this week</div>
+          </div>
+          <span class="stat-icon-circle bg-success-subtle text-success"><i class="bi bi-check-circle-fill"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card h-100 hover-lift dashboard-stat-card {% if tasks_running > 0 %}is-running{% endif %}" id="running-card">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="display-6 fw-bold counter-animate" id="stat-running" data-target="{{ tasks_running }}">{{ tasks_running }}</div>
+            <p class="mb-1 text-muted">Running Now</p>
+            <a href="/tasks?status=running" id="running-card-link" class="small text-primary text-decoration-none">View running tasks →</a>
+          </div>
+          <span class="stat-icon-circle bg-primary-subtle text-primary {% if tasks_running > 0 %}pulse{% endif %}">
+            <i class="bi bi-activity"></i>
+            {% if tasks_running > 0 %}<span class="running-dot"></span>{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card h-100 hover-lift dashboard-stat-card">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="display-6 fw-bold counter-animate" id="stat-success-rate" data-target="{{ success_rate|round(0)|int }}">{{ success_rate }}%</div>
+            <p class="mb-1 text-muted">Success Rate</p>
+            <div class="small text-muted">This month</div>
+          </div>
+          <span class="stat-icon-circle {% if success_rate >= 90 %}bg-success-subtle text-success{% elif success_rate >= 70 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">
+            <i class="bi bi-graph-up-arrow"></i>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-3 col-md-6">
+    <div class="card h-100 hover-lift dashboard-stat-card">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="display-6 fw-bold counter-animate" id="stat-tasks-month" data-target="{{ tasks_this_month }}">{{ tasks_this_month }}</div>
+            <p class="mb-1 text-muted">Tasks This Month</p>
+            {% if quota_limit == -1 %}
+              <div class="small text-muted" id="quota-text">{{ quota_used }} / Unlimited</div>
+              <div class="progress mt-2"><div class="progress-bar" id="quota-bar" style="width: 10%"></div></div>
+            {% else %}
+              <div class="small text-muted" id="quota-text">{{ quota_used }} / {{ quota_limit }} tasks</div>
+              <div class="progress mt-2"><div class="progress-bar {% if quota_percent >= 95 %}bg-danger{% elif quota_percent >= 80 %}bg-warning{% endif %}" id="quota-bar" style="width: {{ quota_percent }}%"></div></div>
+            {% endif %}
+          </div>
+          <span class="stat-icon-circle bg-primary-subtle text-primary"><i class="bi bi-lightning-charge-fill"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mb-4 small text-muted">
+  <span id="last-updated-text">Last updated just now</span>
+  <span id="live-time"></span>
+</div>
+
+{# ====== SECTION 3: MAIN TWO COLUMN CONTENT ====== #}
+<div class="row g-3 mb-3">
+  <div class="col-xl-8">
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Recent Tasks</h5>
+        <a href="/tasks" class="small text-decoration-none">View All →</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_tasks %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">Task Name</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Duration</th>
+                  <th class="pe-3">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for task in recent_tasks %}
+                  <tr>
+                    <td class="ps-3 fw-medium">
+                      {% if task.status == 'done' %}
+                        <a href="/tasks/{{ task.id }}/result" class="text-decoration-none">{{ task.task_name or 'Untitled task' }}</a>
+                      {% else %}
+                        {{ task.task_name or 'Untitled task' }}
+                      {% endif %}
+                    </td>
+                    <td><span class="badge text-bg-light border">{{ task.task_type|replace('_', ' ')|title }}</span></td>
+                    <td>{{ status_badge(task.status) }}</td>
+                    <td>
+                      {% if task.started_at and task.completed_at %}
+                        {% set task_seconds = (task.completed_at - task.started_at).total_seconds()|int %}
+                        {{ task_seconds // 60 }}m {{ task_seconds % 60 }}s
+                      {% elif task.started_at and task.status == 'running' %}
+                        Running
+                      {% else %}
+                        <span class="text-muted">N/A</span>
+                      {% endif %}
+                    </td>
+                    <td class="pe-3 text-muted small">{{ task.created_at|timeago }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3">
+            {{ empty_state('bi-lightning-charge', 'No tasks yet. Launch your first task!', 'Create your first AI task to start automating workflows.', '/tasks/new', 'Launch Task') }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Saved Workflows</h5>
+        <a href="/workflows" class="small text-decoration-none">Manage Workflows →</a>
+      </div>
+      <div class="card-body">
+        {% if not saved_workflows %}
+          {{ empty_state('bi-diagram-3', 'No workflows saved yet', 'Create your first workflow to automate repeatable tasks.', '/workflows/new', 'Create Workflow') }}
+        {% else %}
+          <div class="workflow-shortcuts-row" id="workflow-shortcuts-row">
+            {% for workflow in saved_workflows %}
+              <div class="workflow-shortcut-card">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <h6 class="mb-0" title="{{ workflow.name }}">{{ workflow.name[:25] ~ ('...' if workflow.name|length > 25 else '') }}</h6>
+                  <span class="workflow-status-dot {% if workflow.last_run_status == 'done' %}is-success{% elif workflow.last_run_status == 'failed' %}is-failed{% else %}is-idle{% endif %}"></span>
+                </div>
+                <p class="small text-muted mb-3">
+                  {% if workflow.last_run_at %}
+                    Last run {{ workflow.last_run_at|timeago }}
+                  {% else %}
+                    Never run
+                  {% endif %}
+                </p>
+                <button type="button" class="btn btn-sm btn-outline-primary run-workflow-btn" data-workflow-id="{{ workflow.id }}">
+                  <i class="bi bi-play-fill"></i>
+                  Run
+                </button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card mb-3">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Usage This Month</h5>
+        <a href="/usage" class="small text-decoration-none">Usage</a>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">{{ plan_badge((plan.name if plan else 'Free')) }}</div>
+        {{ usage_bar(quota_used, quota_limit, 'Task Quota') }}
+
+        <p class="small mt-3 mb-2">
+          {% if quota_limit == -1 %}
+            {{ quota_used }} tasks used (Unlimited plan)
+          {% else %}
+            {{ quota_used }} of {{ quota_limit }} tasks used
+          {% endif %}
+        </p>
+
+        {% if quota_percent >= 95 %}
+          <div class="alert alert-danger py-2 px-3 small">
+            You've almost reached your limit.
+            <a href="/settings/billing" class="fw-semibold text-decoration-none">Upgrade Now →</a>
+          </div>
+        {% elif quota_percent >= 80 %}
+          <div class="alert alert-warning py-2 px-3 small">
+            You're approaching your limit.
+            <a href="/settings/billing" class="fw-semibold text-decoration-none">
+              {% if next_plan %}
+                Upgrade to {{ next_plan.name }} {{ next_plan.monthly_price_display }}
+              {% else %}
+                Upgrade Plan →
+              {% endif %}
+            </a>
+          </div>
+        {% endif %}
+
+        <div class="small text-muted mt-2">
+          {% if subscription and subscription.current_period_end %}
+            Next billing: {{ subscription.current_period_end.strftime('%d %b %Y') }}
+          {% else %}
+            No active subscription
+          {% endif %}
+        </div>
+
+        <a href="/settings/billing" class="btn btn-outline-primary w-100 mt-3">Manage Billing →</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">Recommended Templates</h5>
+      </div>
+      <div class="card-body">
+        {% for template in featured_templates %}
+          <div class="recommended-template-item {% if not loop.last %}mb-3 pb-3 border-bottom{% endif %}">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+              <h6 class="mb-0">{{ template.name }}</h6>
+              <span class="badge text-bg-light border">{{ template.category }}</span>
+            </div>
+            <div class="small text-muted mb-2">
+              {% if template.estimated_time_seconds %}
+                {{ (template.estimated_time_seconds / 60)|round(0)|int }} min
+              {% else %}
+                Quick setup
+              {% endif %}
+              <span class="mx-1">•</span>
+              <span class="text-capitalize">{{ template.difficulty }}</span>
+            </div>
+            <a href="/templates/{{ template.id }}" class="btn btn-sm btn-outline-primary">Use Template →</a>
+          </div>
+        {% else %}
+          {{ empty_state('bi-grid-3x3-gap', 'No featured templates right now', 'Check back soon for new automation recipes.') }}
+        {% endfor %}
+        <a href="/templates" class="small text-decoration-none d-inline-block mt-2">Browse All Templates →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== SECTION 4: ACTIVITY + OUTPUTS ====== #}
+<div class="row g-3">
+  <div class="col-xl-7">
+    <div class="card h-100">
+      <div class="card-header bg-white">
+        <h5 class="mb-0">Recent Activity</h5>
+      </div>
+      <div class="card-body">
+        {% if activity_feed %}
+          <div class="activity-timeline">
+            {% for entry in activity_feed %}
+              <div class="activity-timeline-item">
+                <div class="activity-icon-wrap {% if entry.action == 'user.login' %}is-success{% elif entry.action.startswith('task.') %}is-primary{% elif entry.action.startswith('workflow.') %}is-accent{% elif entry.action.startswith('billing.') %}is-warning{% else %}is-muted{% endif %}">
+                  {% if entry.action == 'user.login' %}
+                    <i class="bi bi-box-arrow-in-right"></i>
+                  {% elif entry.action.startswith('task.') %}
+                    <i class="bi bi-lightning-charge"></i>
+                  {% elif entry.action.startswith('workflow.') %}
+                    <i class="bi bi-diagram-3"></i>
+                  {% elif entry.action.startswith('billing.') %}
+                    <i class="bi bi-credit-card"></i>
+                  {% else %}
+                    <i class="bi bi-person"></i>
+                  {% endif %}
+                </div>
+                <div class="activity-content">
+                  <div class="fw-semibold">{{ entry.action|action_to_human }}</div>
+                  <div class="small text-muted">{{ entry.timestamp|timeago }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          {{ empty_state('bi-activity', 'No recent activity', 'Actions from your team and automations appear here.') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-5">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Recent Outputs</h5>
+        <a href="/outputs" class="small text-decoration-none">View All →</a>
+      </div>
+      <div class="card-body">
+        {% if recent_outputs %}
+          <div class="recent-output-list">
+            {% for output in recent_outputs %}
+              {{ output_card(output) }}
+            {% endfor %}
+          </div>
+        {% else %}
+          {{ empty_state('bi-archive', 'No outputs yet', 'Completed task outputs will appear here.', '/tasks/new', 'Launch Task') }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+  (function () {
+    document.addEventListener("DOMContentLoaded", function () {
+      var banner = document.getElementById("welcome-onboarding-banner");
+      var dismissBtn = document.getElementById("dismiss-onboarding-banner");
+      var bannerDismissed = localStorage.getItem("onboarding_banner_dismissed") === "true";
+
+      if (banner && bannerDismissed) {
+        banner.classList.add("d-none");
+      }
+
+      if (banner && dismissBtn) {
+        dismissBtn.addEventListener("click", function () {
+          banner.classList.add("d-none");
+          localStorage.setItem("onboarding_banner_dismissed", "true");
+        });
+      }
+
+      document.querySelectorAll(".run-workflow-btn").forEach(function (button) {
+        button.addEventListener("click", async function () {
+          var workflowId = button.getAttribute("data-workflow-id");
+          if (!workflowId) {
+            return;
+          }
+
+          button.disabled = true;
+          try {
+            var response = await fetch("/workflows/" + encodeURIComponent(workflowId) + "/run", {
+              method: "POST",
+              headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : ""
+              },
+              credentials: "same-origin"
+            });
+
+            if (response.ok) {
+              if (window.showToast) {
+                window.showToast("Workflow queued successfully", "success");
+              }
+            } else if (window.showToast) {
+              window.showToast("Could not start workflow", "warning");
+            }
+          } catch (error) {
+            if (window.showToast) {
+              window.showToast("Could not start workflow", "error");
+            }
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}

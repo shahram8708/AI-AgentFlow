@@ -1,0 +1,193 @@
+{% extends "admin/base_admin.html" %}
+{% from 'partials/macros.html' import pagination_controls %}
+
+{% block title %}Admin Organizations - AgentFlow{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h2 class="h4 mb-0">Organization Management</h2>
+  <div class="d-flex flex-wrap gap-2 small">
+    <span class="badge text-bg-light border">Total: {{ stats.total_orgs }}</span>
+    <span class="badge text-bg-light border">Paying: {{ stats.paying_orgs }}</span>
+    <span class="badge text-bg-light border">Free: {{ stats.free_orgs }}</span>
+    <span class="badge text-bg-light border">Suspended: {{ stats.suspended_orgs }}</span>
+  </div>
+</div>
+
+<form method="get" action="/admin/orgs" class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-4"><input type="text" class="form-control form-control-sm" name="search" value="{{ search }}" placeholder="Search organization"></div>
+      <div class="col-md-3">
+        <select name="plan" class="form-select form-select-sm">
+          <option value="">All Plans</option>
+          {% for plan in plans %}
+            <option value="{{ plan.slug }}" {% if selected_plan == plan.slug %}selected{% endif %}>{{ plan.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">All Statuses</option>
+          <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+          <option value="suspended" {% if selected_status == 'suspended' %}selected{% endif %}>Suspended</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-grid"><button type="submit" class="btn btn-sm btn-danger">Apply</button></div>
+    </div>
+  </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Org Name</th>
+          <th>Owner</th>
+          <th>Plan</th>
+          <th>Seats Used</th>
+          <th>Task Count</th>
+          <th>MRR</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org in organizations %}
+          {% set sub = subscription_map.get(org.id) %}
+          <tr id="org-row-{{ org.id }}">
+            <td>
+              <div class="fw-semibold">{{ org.name }}</div>
+              <div class="small text-muted">{{ org.slug }}</div>
+            </td>
+            <td>{{ org.owner.get_full_name() if org.owner else '-' }}</td>
+            <td><span class="badge text-bg-light border">{{ org.plan.name if org.plan else '-' }}</span></td>
+            <td>
+              {{ org.seats_used }}
+              {% if org.plan and org.plan.seat_limit != -1 %}
+                / {{ org.plan.seat_limit }}
+              {% elif org.plan %}
+                / ∞
+              {% endif %}
+            </td>
+            <td>{{ task_counts.get(org.id, 0) }}</td>
+            <td>
+              {% if sub and sub.plan %}
+                {% if sub.billing_cycle == 'annual' %}
+                  ₹{{ ((sub.plan.price_annual_inr / 12) / 100)|round(0)|int|format_inr }}
+                {% else %}
+                  ₹{{ (sub.plan.price_monthly_inr / 100)|round(0)|int|format_inr }}
+                {% endif %}
+              {% else %}
+                ₹0
+              {% endif %}
+            </td>
+            <td>{{ org.created_at|to_ist }}</td>
+            <td>
+              {% if org.settings_json and org.settings_json.get('suspended') %}
+                <span class="badge text-bg-warning">Suspended</span>
+              {% else %}
+                <span class="badge text-bg-success">Active</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">Actions</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="/projects?org_id={{ org.id }}">View Details</a></li>
+                  <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#changePlanModal-{{ org.id }}">Change Plan</button></li>
+                  {% if org.settings_json and org.settings_json.get('suspended') %}
+                    <li><button class="dropdown-item text-success" type="button" onclick="toggleOrgSuspend('{{ org.id }}', false)">Unsuspend</button></li>
+                  {% else %}
+                    <li><button class="dropdown-item text-warning" type="button" onclick="toggleOrgSuspend('{{ org.id }}', true)">Suspend</button></li>
+                  {% endif %}
+                  <li><button class="dropdown-item text-danger" type="button" onclick="deleteOrg('{{ org.id }}', '{{ org.slug }}')">Delete</button></li>
+                </ul>
+              </div>
+
+              <div class="modal fade" id="changePlanModal-{{ org.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header"><h5 class="modal-title">Change Plan: {{ org.name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                    <div class="modal-body">
+                      <label class="form-label">Select Plan</label>
+                      <select class="form-select" id="plan-select-{{ org.id }}">
+                        {% for plan in plans %}
+                          <option value="{{ plan.id }}" {% if org.plan_id == plan.id %}selected{% endif %}>{{ plan.name }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="modal-footer">
+                      <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button class="btn btn-danger" type="button" onclick="changeOrgPlan('{{ org.id }}')">Update</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="text-center text-muted py-4">No organizations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-body pt-0">{{ pagination_controls(pagination, 'admin.admin_orgs') }}</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+  function changeOrgPlan(orgId) {
+    const planId = document.getElementById('plan-select-' + orgId).value;
+    fetch('/admin/orgs/' + orgId + '/change-plan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : ''
+      },
+      body: JSON.stringify({ plan_id: planId })
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        window.showToast('Organization plan updated', 'success');
+        window.location.reload();
+      }
+    });
+  }
+
+  function toggleOrgSuspend(orgId, suspend) {
+    const action = suspend ? 'suspend' : 'unsuspend';
+    fetch('/admin/orgs/' + orgId + '/' + action, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : '' }
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        window.showToast(suspend ? 'Organization suspended' : 'Organization unsuspended', suspend ? 'warning' : 'success');
+        window.location.reload();
+      }
+    });
+  }
+
+  function deleteOrg(orgId, slug) {
+    const confirmValue = prompt('Type the organization slug to confirm deletion: ' + slug);
+    if (confirmValue !== slug) {
+      window.showToast('Confirmation slug did not match. Delete cancelled.', 'warning');
+      return;
+    }
+
+    fetch('/admin/orgs/' + orgId, {
+      method: 'DELETE',
+      headers: { 'X-CSRFToken': window.getCSRFToken ? window.getCSRFToken() : '' }
+    }).then(r => r.json()).then(data => {
+      if (data.success) {
+        window.showToast('Organization deleted', 'success');
+        window.location.reload();
+      }
+    });
+  }
+</script>
+{% endblock %}

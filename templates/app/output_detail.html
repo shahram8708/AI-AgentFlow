@@ -1,0 +1,202 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import status_badge %}
+
+{% block title %}{{ task.task_name }} - Output - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    margin-top: 1rem;
+    margin-bottom: 0.6rem;
+    font-weight: 700;
+  }
+
+  .markdown-body code {
+    background: #f1f5f9;
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85em;
+  }
+
+  .markdown-body pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 0.9rem;
+    overflow-x: auto;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/outputs" class="text-decoration-none">Outputs</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ task.task_name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== HEADER ====== #}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+  <div>
+    <a href="/outputs" class="btn btn-sm btn-outline-secondary mb-2">Back to Outputs ←</a>
+    <h2 class="fw-bold mb-1">{{ task.task_name }}</h2>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      {{ status_badge(task.status) }}
+      <span class="badge text-bg-light border">{{ output.output_type|upper }}</span>
+      <span class="small text-muted">Created {{ output.created_at | to_ist }}</span>
+      {% if output.file_size %}
+        <span class="small text-muted">Size {{ output.file_size }} bytes</span>
+      {% endif %}
+    </div>
+    <div class="small text-muted mt-1">This output will be retained until {{ expiry_date | to_ist }} on your current plan</div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="/api/outputs/{{ output.id }}/download?format=docx">DOCX</a>
+    <a class="btn btn-outline-primary btn-sm" href="/api/outputs/{{ output.id }}/download?format=pdf">PDF</a>
+    <a class="btn btn-outline-primary btn-sm" href="/api/outputs/{{ output.id }}/download?format=csv">CSV</a>
+    <a class="btn btn-outline-primary btn-sm" href="/api/outputs/{{ output.id }}/download?format=json">JSON</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="copy-output-btn">Copy</button>
+  </div>
+</div>
+
+{# ====== CONTENT GRID ====== #}
+<div class="row g-3">
+  <div class="col-lg-9">
+    <div class="card mb-3">
+      <div class="card-header bg-white"><h6 class="mb-0">Output</h6></div>
+      <div class="card-body">
+        {% if output.output_type in ['text', 'markdown', 'html'] %}
+          <div class="markdown-body">{{ output_content | markdown_to_html | safe }}</div>
+        {% elif output.output_type == 'code' %}
+          <pre class="mb-0"><code id="output-content-block">{{ output_content | e }}</code></pre>
+        {% elif output.output_type == 'json' %}
+          <pre class="mb-0 bg-dark text-light p-3 rounded" id="output-content-block">{{ output_json_pretty or output_content | e }}</pre>
+        {% else %}
+          <pre class="mb-0" id="output-content-block">{{ output_content | e }}</pre>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white"><h6 class="mb-0">Comments</h6></div>
+      <div class="card-body">
+        <textarea id="output-note-input" class="form-control mb-2" rows="3" maxlength="2000" placeholder="Add note for this output"></textarea>
+        <button type="button" class="btn btn-primary btn-sm" id="save-note-btn">Save Note</button>
+
+        <hr>
+        <div id="notes-list">
+          {% if notes %}
+            {% for note in notes|reverse %}
+              <div class="border rounded p-2 mb-2">
+                <div class="small text-muted">{{ note.author if note.author else '' }} {{ note.created_at | default('') }}</div>
+                <div>{{ note.note if note.note else note }}</div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="small text-muted">No notes yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card mb-3">
+      <div class="card-header bg-white"><h6 class="mb-0">Metadata</h6></div>
+      <div class="card-body small">
+        <div class="mb-2"><strong>Task Type:</strong> {{ task.task_type }}</div>
+        <div class="mb-2"><strong>Output Type:</strong> {{ output.output_type }}</div>
+        <div class="mb-2"><strong>Created:</strong> {{ output.created_at | timeago }}</div>
+        <div class="mb-2"><strong>Retention:</strong> {{ expiry_date | timeago }}</div>
+        <div><strong>Task:</strong> <a href="/tasks/{{ task.id }}/monitor" class="text-decoration-none">Open Monitor</a></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white"><h6 class="mb-0">Task Steps</h6></div>
+      <div class="card-body small">
+        {% for step in steps %}
+          <div class="mb-2 pb-2 border-bottom">
+            <div class="fw-semibold">{{ step.step_number }}. {{ step.step_name }}</div>
+            <div class="text-muted text-capitalize">{{ step.status }}</div>
+          </div>
+        {% else %}
+          <div class="text-muted">No steps available.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    async function saveNote() {
+      const noteInput = document.getElementById("output-note-input");
+      const note = String(noteInput ? noteInput.value : "").trim();
+      if (!note) {
+        if (window.showToast) {
+          window.showToast("Please enter a note", "warning");
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch("/outputs/{{ output.id }}/notes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": window.getCSRFToken ? window.getCSRFToken() : "",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ note: note })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message || "Could not save note");
+        }
+
+        if (window.showToast) {
+          window.showToast("Note saved", "success");
+        }
+        if (noteInput) {
+          noteInput.value = "";
+        }
+        window.location.reload();
+      } catch (error) {
+        if (window.showToast) {
+          window.showToast(error.message || "Save failed", "danger");
+        }
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const saveNoteBtn = document.getElementById("save-note-btn");
+      saveNoteBtn && saveNoteBtn.addEventListener("click", saveNote);
+
+      const copyBtn = document.getElementById("copy-output-btn");
+      copyBtn && copyBtn.addEventListener("click", function () {
+        const content = document.getElementById("output-content-block") || document.querySelector(".markdown-body");
+        if (!content || !window.copyToClipboard) {
+          return;
+        }
+        window.copyToClipboard(content.innerText || "", copyBtn).catch(function () {
+          if (window.showToast) {
+            window.showToast("Could not copy output", "danger");
+          }
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}

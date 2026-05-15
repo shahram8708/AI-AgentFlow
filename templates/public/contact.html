@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact{% endblock %}
+
+{% block extra_css %}
+<style>
+  .contact-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 3.5rem;
+  }
+
+  .contact-info-card {
+    position: sticky;
+    top: 84px;
+  }
+
+  .map-placeholder {
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--text-muted);
+    background: var(--bg-light);
+  }
+
+  @media (max-width: 991.98px) {
+    .contact-info-card {
+      position: static;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  <section class="contact-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-2">Contact Us</h1>
+      <p class="lead text-white-50 mb-0">Talk to our team about sales, support, partnerships, or product questions.</p>
+    </div>
+  </section>
+
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="card">
+            <div class="card-body p-4 p-lg-5">
+              <h2 class="h3 fw-bold mb-4">Get in Touch</h2>
+
+              <form method="post" action="{{ url_for('public.contact_submit') }}" class="needs-validation" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="form-floating mb-3">
+                  {{ form.name(class='form-control' + (' is-invalid' if form.name.errors else ''), placeholder='Name') }}
+                  <label for="{{ form.name.id }}">Name</label>
+                  {% for error in form.name.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-floating mb-3">
+                  {{ form.email(class='form-control' + (' is-invalid' if form.email.errors else ''), placeholder='name@company.com') }}
+                  <label for="{{ form.email.id }}">Email</label>
+                  {% for error in form.email.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-floating mb-3">
+                  {{ form.company(class='form-control' + (' is-invalid' if form.company.errors else ''), placeholder='Company') }}
+                  <label for="{{ form.company.id }}">Company</label>
+                  {% for error in form.company.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-floating mb-3">
+                  {{ form.subject(class='form-select' + (' is-invalid' if form.subject.errors else '')) }}
+                  <label for="{{ form.subject.id }}">Subject</label>
+                  {% for error in form.subject.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                <div class="form-floating mb-3">
+                  {{ form.message(class='form-control' + (' is-invalid' if form.message.errors else ''), placeholder='How can we help?', style='min-height: 150px') }}
+                  <label for="{{ form.message.id }}">Message</label>
+                  {% for error in form.message.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                  {% endfor %}
+                </div>
+
+                {{ form.submit(class='btn btn-primary btn-lg px-4') }}
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <aside class="contact-info-card d-grid gap-3">
+            <div class="card">
+              <div class="card-body p-4">
+                <h3 class="h6 fw-bold mb-3">Our office</h3>
+                <p class="mb-2"><i class="bi bi-geo-alt me-2"></i>AgentFlow Technologies Pvt. Ltd., 123 SG Highway, Ahmedabad, Gujarat 380054, India</p>
+                <p class="mb-2"><i class="bi bi-envelope me-2"></i><a href="mailto:hello@agentflow.ai">hello@agentflow.ai</a></p>
+                <p class="mb-2"><i class="bi bi-telephone me-2"></i>+91 79 XXXX XXXX</p>
+                <p class="mb-2"><i class="bi bi-clock me-2"></i>Mon–Fri, 10:00 AM – 7:00 PM IST</p>
+                <span class="badge text-bg-success">We typically respond within 2 hours</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-body p-4">
+                <h3 class="h6 fw-bold mb-3">Follow us</h3>
+                <div class="d-flex gap-2">
+                  <a class="social-btn" href="#" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                  <a class="social-btn" href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
+                  <a class="social-btn" href="#" aria-label="GitHub"><i class="bi bi-github"></i></a>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-body p-4">
+                <h3 class="h6 fw-bold mb-3">Location</h3>
+                <div class="map-placeholder">
+                  <i class="bi bi-map fs-3 mb-2"></i>
+                  <p class="small mb-1">Google Maps preview</p>
+                  <a href="#" class="small">View on Google Maps</a>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}

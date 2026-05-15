@@ -1,0 +1,413 @@
+{% extends 'app/base_app.html' %}
+{% from 'partials/macros.html' import empty_state, pagination_controls, usage_bar %}
+
+{% block title %}Knowledge Base - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .knowledge-drop-zone {
+    border: 2px dashed #c9ddff;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    background: #f8fbff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .knowledge-drop-zone.active {
+    border-color: var(--primary);
+    background: #eef5ff;
+  }
+
+  .source-icon-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+
+  .knowledge-grid {
+    display: none;
+  }
+
+  .knowledge-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+  }
+
+  .source-strip {
+    height: 4px;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Knowledge Base</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== PAGE HEADER ====== #}
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h2 class="fw-bold mb-0">Agent Knowledge Base</h2>
+      <span class="badge bg-primary-subtle text-primary">{{ total_entries }}</span>
+    </div>
+    <p class="text-muted mb-0">Documents and data that your AI agents can reference during task execution</p>
+  </div>
+  <div class="dropdown">
+    <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" type="button">Add Knowledge</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#upload-file-modal">Upload File</button></li>
+      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#add-url-modal">Add URL</button></li>
+      <li><button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#add-note-modal">Write Note</button></li>
+    </ul>
+  </div>
+</div>
+
+{# ====== STORAGE STATS ====== #}
+{% set size_mb = (total_size_bytes / (1024 * 1024))|round(2) %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-center">
+      <div class="col-lg-8">
+        {{ usage_bar(size_mb, plan_limit_mb, 'Knowledge Storage') }}
+      </div>
+      <div class="col-lg-4">
+        <div class="small fw-semibold">{{ source_counts.get('file', 0) }} files uploaded</div>
+        <div class="small fw-semibold">{{ source_counts.get('url', 0) }} URLs added</div>
+        <div class="small fw-semibold">{{ source_counts.get('text', 0) }} notes written</div>
+        <div class="small text-muted">Total: {{ size_mb }} MB of {{ plan_limit_mb }} MB</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ====== FILTER BAR ====== #}
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" action="/knowledge" id="knowledge-filter-form">
+      <div class="row g-2 align-items-end">
+        <div class="col-lg-3">
+          <label class="form-label small mb-1">Search</label>
+          <input type="search" class="form-control form-control-sm" id="knowledge-search" name="search" value="{{ search }}" placeholder="Search title or content">
+        </div>
+
+        <div class="col-lg-3">
+          <label class="form-label small mb-1">Source Type</label>
+          <div class="d-flex flex-wrap gap-1" id="source-filter-wrap">
+            <button type="button" class="btn btn-sm {% if selected_source_type == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %} source-filter-btn" data-source="all" data-selection="true">All</button>
+            <button type="button" class="btn btn-sm {% if selected_source_type == 'file' %}btn-primary{% else %}btn-outline-secondary{% endif %} source-filter-btn" data-source="file" data-selection="true">Files</button>
+            <button type="button" class="btn btn-sm {% if selected_source_type == 'url' %}btn-primary{% else %}btn-outline-secondary{% endif %} source-filter-btn" data-source="url" data-selection="true">URLs</button>
+            <button type="button" class="btn btn-sm {% if selected_source_type == 'text' %}btn-primary{% else %}btn-outline-secondary{% endif %} source-filter-btn" data-source="text" data-selection="true">Notes</button>
+          </div>
+          <input type="hidden" id="source-type-input" name="source_type" value="{{ selected_source_type }}">
+        </div>
+
+        <div class="col-lg-2">
+          <label class="form-label small mb-1">Project</label>
+          <select class="form-select form-select-sm" name="project_id" id="knowledge-project-filter">
+            <option value="">All Projects</option>
+            {% for project in projects %}
+              <option value="{{ project.id }}" {% if selected_project_id == project.id|string %}selected{% endif %}>{{ project.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-1">
+          <label class="form-label small mb-1">From</label>
+          <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+        </div>
+
+        <div class="col-lg-1">
+          <label class="form-label small mb-1">To</label>
+          <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+        </div>
+
+        <div class="col-lg-2">
+          <label class="form-label small mb-1">Sort</label>
+          <select class="form-select form-select-sm" name="sort">
+            <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest</option>
+            <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest</option>
+            <option value="largest" {% if selected_sort == 'largest' %}selected{% endif %}>Largest</option>
+            <option value="alphabetical" {% if selected_sort == 'alphabetical' %}selected{% endif %}>Alphabetical</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between mt-2">
+        <div class="small text-muted"><span id="knowledge-count">{{ total_entries }}</span> results</div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" id="knowledge-list-view-btn" class="btn btn-sm btn-outline-secondary" data-selection="true">List View</button>
+          <button type="button" id="knowledge-grid-view-btn" class="btn btn-sm btn-outline-secondary" data-selection="true">Grid View</button>
+          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          <a href="/knowledge" class="btn btn-sm btn-outline-secondary">Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if entries %}
+  {# ====== LIST VIEW ====== #}
+  <div class="card mb-3" id="knowledge-list-view">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Entry</th>
+            <th>Source</th>
+            <th>Project</th>
+            <th>Created</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="knowledge-list-body">
+          {% for entry in entries %}
+            {% set source_icon = 'bi-pencil-square' %}
+            {% set source_color = '#7c3aed' %}
+            {% if entry.source_type == 'file' %}
+              {% set source_icon = 'bi-file-earmark-text' %}
+              {% set source_color = '#2563eb' %}
+            {% elif entry.source_type == 'url' %}
+              {% set source_icon = 'bi-globe2' %}
+              {% set source_color = '#16a34a' %}
+            {% endif %}
+
+            <tr id="knowledge-row-{{ entry.id }}" class="knowledge-entry-row" data-entry-id="{{ entry.id }}" data-source="{{ entry.source_type }}" data-title="{{ entry.title|lower }}">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="source-icon-circle" style="background: {{ source_color }};"><i class="bi {{ source_icon }}"></i></span>
+                  <div>
+                    <a href="#" class="fw-semibold text-decoration-none preview-entry-link" data-entry-id="{{ entry.id }}">{{ entry.title }}</a>
+                    <div class="small text-muted">
+                      {% if entry.source_type == 'file' %}
+                        {{ entry.file_name or 'Uploaded file' }} {% if entry.file_size %}<span class="ms-1">{{ (entry.file_size / 1024)|round(1) }} KB</span>{% endif %}
+                        {% if entry.file_mime %}<span class="badge text-bg-light border ms-1">{{ entry.file_mime }}</span>{% endif %}
+                      {% elif entry.source_type == 'url' %}
+                        {% if entry.source_url %}
+                          <span class="badge text-bg-light border">{{ entry.source_url|replace('https://', '')|truncate(38) }}</span>
+                        {% endif %}
+                      {% else %}
+                        {{ entry.content_text[:80] if entry.content_text else 'Text note' }}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td><span class="badge text-bg-light border text-uppercase">{{ entry.source_type }}</span></td>
+              <td>{% if entry.project %}<span class="badge text-bg-secondary">{{ entry.project.name }}</span>{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
+              <td>
+                <div class="small text-muted">{{ entry.created_at | timeago }}</div>
+                <div class="small">{{ entry.creator.get_full_name() if entry.creator else 'Unknown' }}</div>
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-primary preview-entry-btn" data-entry-id="{{ entry.id }}"><i class="bi bi-eye"></i></button>
+                  <button type="button" class="btn btn-outline-dark edit-title-btn" data-entry-id="{{ entry.id }}" data-title="{{ entry.title }}"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn btn-outline-danger delete-entry-btn" data-entry-id="{{ entry.id }}" data-confirm="Delete this knowledge entry?"><i class="bi bi-trash"></i></button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-body">
+      {{ pagination_controls(pagination, 'knowledge.knowledge_home') }}
+    </div>
+  </div>
+
+  {# ====== GRID VIEW ====== #}
+  <div id="knowledge-grid-view" class="knowledge-grid">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3" id="knowledge-grid-body">
+      {% for entry in entries %}
+        {% set strip_color = '#7c3aed' %}
+        {% if entry.source_type == 'file' %}
+          {% set strip_color = '#2563eb' %}
+        {% elif entry.source_type == 'url' %}
+          {% set strip_color = '#16a34a' %}
+        {% endif %}
+
+        <div class="col knowledge-grid-item" id="knowledge-grid-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-source="{{ entry.source_type }}" data-title="{{ entry.title|lower }}">
+          <div class="knowledge-card h-100 p-0">
+            <div class="source-strip" style="background: {{ strip_color }};"></div>
+            <div class="p-3 d-flex flex-column h-100">
+              <h6 class="fw-semibold mb-1"><a href="#" class="preview-entry-link text-decoration-none" data-entry-id="{{ entry.id }}">{{ entry.title }}</a></h6>
+              <div class="small text-muted mb-2 text-uppercase">{{ entry.source_type }}</div>
+              <div class="small text-muted mb-2">{% if entry.file_size %}{{ (entry.file_size / 1024)|round(1) }} KB{% elif entry.content_text %}{{ entry.content_text|length }} chars{% else %}Source link{% endif %}</div>
+              <div class="small text-muted mb-3">{{ entry.created_at | timeago }}</div>
+              <div class="mt-auto d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary preview-entry-btn" data-entry-id="{{ entry.id }}">Preview</button>
+                <button type="button" class="btn btn-sm btn-outline-danger delete-entry-btn" data-entry-id="{{ entry.id }}" data-confirm="Delete this knowledge entry?">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  {{ empty_state('bi-book', 'No knowledge entries yet', 'Add documents, links, or notes to power your AI tasks', '/knowledge', 'Add Knowledge') }}
+{% endif %}
+
+{# ====== UPLOAD FILE MODAL ====== #}
+<div class="modal fade" id="upload-file-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="upload-file-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Upload File</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="knowledge-drop-zone" class="knowledge-drop-zone mb-3">
+            <div><i class="bi bi-cloud-upload fs-2"></i></div>
+            <div class="fw-semibold">Drag and drop files here or click to browse</div>
+            <div class="small text-muted">Supported: PDF, DOCX, TXT, CSV, MD, XLSX, JSON</div>
+            <div class="small text-muted">Max 16 MB per file</div>
+            <input id="knowledge-file-input" type="file" class="d-none" accept=".pdf,.docx,.txt,.csv,.md,.xlsx,.json">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Title (optional)</label>
+            <input type="text" class="form-control" id="upload-title">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Project</label>
+            <select class="form-select" id="upload-project-id">
+              <option value="">No project</option>
+              {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div id="upload-progress-wrap" class="progress" style="display:none;">
+            <div id="upload-progress-bar" class="progress-bar" style="width:0%;">0%</div>
+          </div>
+          <div id="upload-error" class="small text-danger mt-2" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== ADD URL MODAL ====== #}
+<div class="modal fade" id="add-url-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="add-url-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Add URL</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">URL</label>
+            <input type="url" class="form-control" id="url-input" placeholder="https://..." required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" id="url-title" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Project</label>
+            <select class="form-select" id="url-project-id">
+              <option value="">No project</option>
+              {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div id="url-error" class="small text-danger" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save URL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== ADD NOTE MODAL ====== #}
+<div class="modal fade" id="add-note-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form id="add-note-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Write Note</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" id="note-title" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Content</label>
+            <textarea class="form-control" id="note-content" rows="7" minlength="10" maxlength="50000" required></textarea>
+            <div class="small text-muted"><span id="note-char-count">0</span>/50000</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Project</label>
+            <select class="form-select" id="note-project-id">
+              <option value="">No project</option>
+              {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div id="note-error" class="small text-danger" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Note</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ====== PREVIEW MODAL ====== #}
+<div class="modal fade" id="preview-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="preview-modal-title">Knowledge Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="preview-modal-body">
+        <div class="text-muted">Loading preview...</div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-outline-primary" id="preview-download-btn" style="display:none;">Download File</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/knowledge.js') }}"></script>
+{% endblock %}

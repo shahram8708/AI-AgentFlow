@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import pagination_controls %}
+
+{% block title %}Use Cases{% endblock %}
+
+{% block extra_css %}
+<style>
+  .use-cases-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 3.5rem;
+  }
+
+  .use-case-filter-bar {
+    position: sticky;
+    top: 72px;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .task-use-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .task-use-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .task-strip {
+    height: 5px;
+    width: 100%;
+  }
+
+  .web-search-flag {
+    font-size: 0.8rem;
+    color: var(--info);
+  }
+
+  .task-grid-empty {
+    display: none;
+  }
+
+  @media (max-width: 991.98px) {
+    .use-case-filter-bar {
+      top: 60px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== PAGE HERO ==================== #}
+  <section class="use-cases-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-3">481 AI Automation Use Cases</h1>
+      <p class="lead text-white-50 mb-0">Search by category, industry, or task type to find the exact workflow you want to automate.</p>
+    </div>
+  </section>
+
+  {# ==================== SEARCH AND FILTER BAR ==================== #}
+  <section class="use-case-filter-bar py-3">
+    <div class="container">
+      <form class="row g-2 align-items-center" method="get" action="{{ url_for('public.use_cases') }}" id="server-filter-form">
+        <div class="col-lg-5">
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="use-case-search" name="search" value="{{ search_query }}" placeholder="Search by task name or description">
+          </div>
+        </div>
+        <div class="col-lg-3">
+          <select class="form-select" id="use-case-category" name="category">
+            <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All categories</option>
+            {% for key, category in task_categories.items() %}
+              <option value="{{ key }}" {% if selected_category == key %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-lg-2">
+          <button type="submit" class="btn btn-primary w-100">Apply</button>
+        </div>
+        <div class="col-lg-2 text-lg-end">
+          <a href="{{ url_for('public.use_cases') }}" class="small" id="reset-filters">Reset Filters</a>
+        </div>
+      </form>
+      <div class="mt-2 small text-muted">
+        Showing <span id="visible-result-count">{{ task_registry|length }}</span> of {{ total_use_cases }} use cases
+      </div>
+    </div>
+  </section>
+
+  {# ==================== TASK CARDS GRID ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4" id="use-case-grid">
+        {% for task in page_items %}
+          {% set category = task_categories.get(task.category) %}
+          <div
+            class="col-xl-3 col-lg-4 col-md-6 use-case-card-col"
+            data-category="{{ task.category }}"
+            data-name="{{ (task.name ~ ' ' ~ task.description)|lower }}"
+          >
+            <article class="task-use-card">
+              <div class="task-strip" style="background: {{ category.color if category else 'var(--primary)' }};"></div>
+              <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+                  <span class="badge rounded-pill" style="background: rgba(26, 86, 219, 0.12); color: var(--primary);">{{ category.name if category else task.category }}</span>
+                  <small class="text-muted">{{ task.id }}</small>
+                </div>
+
+                <h3 class="h6 fw-bold mb-2">{{ task.name }}</h3>
+                <p class="small text-muted mb-2">{{ task.description }}</p>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                  {% if task.industry %}
+                    <span class="badge rounded-pill text-bg-light border">{{ task.industry | replace('-', ' ') | title }}</span>
+                  {% endif %}
+                  {% if task.requires_web_search %}
+                    <span class="web-search-flag"><i class="bi bi-globe2"></i> requires web search</span>
+                  {% endif %}
+                </div>
+
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-sm">Try Now →</a>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="task-grid-empty text-center py-5" id="task-grid-empty">
+        <div class="empty-state-icon mb-3">
+          <i class="bi bi-search"></i>
+        </div>
+        <h4 class="h5">No use cases found. Try a different search.</h4>
+      </div>
+
+      <div class="mt-4">
+        {{ pagination_controls(pagination, 'public.use_cases', category=selected_category, search=search_query) }}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== CTA BANNER ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="rounded-4 p-4 p-lg-5 text-center text-white" style="background: linear-gradient(135deg, var(--primary), var(--accent));">
+        <h2 class="fw-bold mb-2">Ready to automate? Start with any of these 481 tasks</h2>
+        <p class="text-white-50 mb-3">Launch your first workflow in minutes and scale with confidence.</p>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">Sign Up</a>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var searchInput = document.getElementById("use-case-search");
+    var categorySelect = document.getElementById("use-case-category");
+    var cards = document.querySelectorAll(".use-case-card-col");
+    var countNode = document.getElementById("visible-result-count");
+    var emptyNode = document.getElementById("task-grid-empty");
+
+    function normalize(value) {
+      return (value || "").toLowerCase().trim();
+    }
+
+    function applyClientFilter() {
+      var search = normalize(searchInput ? searchInput.value : "");
+      var category = categorySelect ? categorySelect.value : "all";
+      var visible = 0;
+
+      cards.forEach(function (card) {
+        var name = card.dataset.name || "";
+        var cardCategory = card.dataset.category || "";
+        var matchSearch = !search || name.indexOf(search) >= 0;
+        var matchCategory = category === "all" || cardCategory === category;
+
+        if (matchSearch && matchCategory) {
+          card.classList.remove("d-none");
+          visible += 1;
+        } else {
+          card.classList.add("d-none");
+        }
+      });
+
+      if (countNode) {
+        countNode.textContent = String(visible);
+      }
+
+      if (emptyNode) {
+        if (visible === 0) {
+          emptyNode.style.display = "block";
+        } else {
+          emptyNode.style.display = "none";
+        }
+      }
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener("keyup", applyClientFilter);
+    }
+
+    if (categorySelect) {
+      categorySelect.addEventListener("change", applyClientFilter);
+    }
+
+    applyClientFilter();
+  })();
+</script>
+{% endblock %}

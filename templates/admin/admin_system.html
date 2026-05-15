@@ -1,0 +1,189 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Admin System Health - AgentFlow{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="h4 mb-0">System Health &amp; Observability</h2>
+  <span class="small text-muted" id="last-refreshed">Updated: {{ metrics.last_refreshed|to_ist }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100" id="db-status">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2"><i class="bi bi-circle-fill {% if metrics.database.status == 'operational' %}text-success{% elif metrics.database.status == 'degraded' %}text-warning{% else %}text-danger{% endif %}"></i><span class="fw-semibold">Database</span></div>
+        <div class="small text-muted mt-2" id="db-health-label">{{ metrics.database.status|title }}</div>
+        <div class="small text-muted" id="db-response-ms">{{ metrics.database.response_ms if metrics.database.response_ms is not none else '-' }} ms</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100" id="redis-status">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2"><i class="bi bi-circle-fill {% if metrics.redis.status == 'operational' %}text-success{% elif metrics.redis.status == 'degraded' %}text-warning{% else %}text-danger{% endif %}"></i><span class="fw-semibold">Redis</span></div>
+        <div class="small text-muted mt-2" id="redis-health-label">{{ metrics.redis.status|title }}</div>
+        <div class="small text-muted" id="redis-response-ms">{{ metrics.redis.response_ms if metrics.redis.response_ms is not none else '-' }} ms</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100" id="celery-status">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2"><i class="bi bi-circle-fill {% if metrics.celery.status == 'operational' %}text-success{% elif metrics.celery.status == 'degraded' %}text-warning{% else %}text-danger{% endif %}"></i><span class="fw-semibold">Celery Workers</span></div>
+        <div class="small text-muted mt-2" id="celery-health-label">{{ metrics.celery.status|title }}</div>
+        <div class="small text-muted" id="celery-worker-count">{{ metrics.celery.worker_count }} workers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100" id="app-status">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2"><i class="bi bi-circle-fill {% if metrics.application.error_rate_24h < 5 %}text-success{% elif metrics.application.error_rate_24h < 10 %}text-warning{% else %}text-danger{% endif %}"></i><span class="fw-semibold">Application</span></div>
+        <div class="small text-muted mt-2">Error rate 24h</div>
+        <div class="small text-muted" id="app-error-rate">{{ metrics.application.error_rate_24h }}%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="small text-muted">CPU Usage</div>
+        <div class="display-6 fw-bold" id="cpu-progress">{{ metrics.system.cpu_percent }}%</div>
+        <div class="small text-muted">{{ metrics.system.cpu_count }} cores</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="small text-muted">Memory</div>
+        <div class="display-6 fw-bold" id="memory-progress">{{ metrics.system.memory_percent }}%</div>
+        <div class="small text-muted">{{ metrics.system.memory_used_gb }} / {{ metrics.system.memory_total_gb }} GB</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="small text-muted">Disk</div>
+        <div class="display-6 fw-bold" id="disk-progress">{{ metrics.system.disk_percent }}%</div>
+        <div class="small text-muted">{{ metrics.system.disk_free_gb }} GB free</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <div class="small text-muted">Load Average</div>
+        <div class="fw-bold">{{ metrics.system.load_average[0] }} / {{ metrics.system.load_average[1] }} / {{ metrics.system.load_average[2] }}</div>
+        <div class="small text-muted">1m / 5m / 15m</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Database Details</h5></div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-6"><div class="small text-muted">Pool Size</div><div class="fw-semibold">{{ metrics.database.pool.size }}</div></div>
+          <div class="col-6"><div class="small text-muted">Checked Out</div><div class="fw-semibold">{{ metrics.database.pool.checkedout }}</div></div>
+          <div class="col-6"><div class="small text-muted">Checked In</div><div class="fw-semibold">{{ metrics.database.pool.checkedin }}</div></div>
+          <div class="col-6"><div class="small text-muted">Overflow</div><div class="fw-semibold">{{ metrics.database.pool.overflow }}</div></div>
+        </div>
+        <div class="small text-muted">Version</div>
+        <div class="small fw-semibold mb-3">{{ metrics.database.version }}</div>
+        <div class="small text-muted">Table Row Counts</div>
+        <ul class="mb-0 small">
+          {% for table_name, count in metrics.database.tables.items() %}
+            <li>{{ table_name }}: {{ count }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0"><h5 class="mb-0">Redis & Queue</h5></div>
+      <div class="card-body">
+        <div class="small text-muted">Memory Used</div>
+        <div class="fw-semibold mb-2">{{ metrics.redis.memory_used }}</div>
+        <div class="small text-muted">Connected Clients</div>
+        <div class="fw-semibold mb-3">{{ metrics.redis.connected_clients }}</div>
+        <div class="small text-muted mb-1">Queue Depths</div>
+        <div>Default: <span id="queue-default" class="fw-semibold {% if metrics.celery.queue_default > 50 %}text-danger{% endif %}">{{ metrics.celery.queue_default }}</span></div>
+        <div>High: <span id="queue-high" class="fw-semibold">{{ metrics.celery.queue_high }}</span></div>
+        <div>Low: <span id="queue-low" class="fw-semibold">{{ metrics.celery.queue_low }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Celery Workers</h5></div>
+  <div class="card-body">
+    {% if metrics.celery.workers %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light"><tr><th>Hostname</th><th>Tasks Processed</th><th>Current Tasks</th></tr></thead>
+          <tbody>
+            {% for worker in metrics.celery.workers %}
+              <tr><td>{{ worker.hostname }}</td><td>{{ worker.tasks_processed }}</td><td>{{ worker.current_tasks }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-danger mb-0">No Celery workers are connected. Tasks will not execute.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-0"><h5 class="mb-0">Recent Errors</h5></div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Timestamp</th><th>Org</th><th>Action</th><th>Summary</th></tr></thead>
+      <tbody>
+        {% for item in metrics.application.recent_errors %}
+          <tr>
+            <td>{{ item.timestamp }}</td>
+            <td>{{ item.org_id[:8] if item.org_id else '-' }}</td>
+            <td>{{ item.action }}</td>
+            <td>{{ item.summary or item.resource_id }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-3">No recent errors.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+  (function () {
+    function refreshSystemMetrics() {
+      fetch('/api/admin/system-metrics', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(payload => {
+          if (payload.success && payload.data) {
+            updateSystemDisplay(payload.data);
+          }
+        })
+        .catch(() => {});
+    }
+
+    setInterval(refreshSystemMetrics, 30000);
+  })();
+</script>
+{% endblock %}

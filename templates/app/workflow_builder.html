@@ -1,0 +1,379 @@
+{% extends 'app/base_app.html' %}
+
+{% block title %}{% if workflow %}Edit - {{ workflow.name }}{% else %}New Workflow{% endif %} - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .workflow-toolbar {
+    position: sticky;
+    top: 64px;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(8px);
+  }
+
+  .step-canvas {
+    min-height: 420px;
+  }
+
+  .sortable-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .step-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    background: #fff;
+  }
+
+  .step-card.dragging,
+  .step-card.touch-dragging {
+    opacity: 0.65;
+    transform: scale(0.98);
+  }
+
+  .step-card.drag-over {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+  }
+
+  .drag-handle {
+    width: 24px;
+    color: #94a3b8;
+    cursor: grab;
+    text-align: center;
+  }
+
+  .step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .step-input-preview {
+    color: #64748b;
+    font-size: 0.82rem;
+  }
+
+  .step-config {
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+    display: none;
+  }
+
+  .step-config.open {
+    display: block;
+  }
+
+  .insert-step-row {
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    margin-top: -0.2rem;
+  }
+
+  .step-card-wrap:hover .insert-step-row {
+    opacity: 1;
+  }
+
+  .add-step-button {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    background: #f8fafc;
+  }
+
+  .add-step-button:hover {
+    border-color: var(--primary);
+    background: #eef2ff;
+  }
+
+  .task-type-selector {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: #fff;
+  }
+
+  .category-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .category-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-pill {
+    border: 1px solid var(--border-color);
+    background: #f1f5f9;
+    color: var(--text-primary);
+  }
+
+  .category-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .task-type-option {
+    border: 1px solid var(--border-color);
+    border-radius: 0.7rem;
+    padding: 0.75rem;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .task-type-option:hover {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.15);
+  }
+
+  .save-btn-pulse {
+    animation: workflow-save-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes workflow-save-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(30, 64, 175, 0.35);
+    }
+    70% {
+      box-shadow: 0 0 0 8px rgba(30, 64, 175, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(30, 64, 175, 0);
+    }
+  }
+
+  @media (max-width: 992px) {
+    .workflow-toolbar {
+      top: 56px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb" class="mb-0">
+  <ol class="breadcrumb app-breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/dashboard" class="text-decoration-none">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/workflows" class="text-decoration-none">Workflows</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if workflow %}{{ workflow.name }}{% else %}New Workflow{% endif %}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block app_content %}
+{# ====== TOP TOOLBAR ====== #}
+<div class="workflow-toolbar p-3 mb-4">
+  <div class="d-flex flex-column flex-xl-row align-items-xl-center gap-3">
+    <div class="flex-grow-1">
+      <label for="workflow-name" class="form-label small text-muted mb-1">Workflow Name</label>
+      <input type="text"
+             id="workflow-name"
+             class="form-control form-control-lg border-0 px-0 fw-semibold"
+             placeholder="Untitled Workflow"
+             value="{{ workflow.name if workflow else '' }}">
+      <span id="save-status" class="text-muted small">Unsaved changes</span>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <button type="button" class="btn btn-outline-secondary" id="test-run-btn">
+        <i class="bi bi-flask me-1"></i>Test Run
+      </button>
+      <button type="button" class="btn btn-primary" id="save-workflow-btn" data-loading-text="Saving workflow...">
+        <i class="bi bi-save me-1"></i>Save
+      </button>
+      <button type="button" class="btn btn-success" id="save-run-workflow-btn" data-loading-text="Saving & launching...">
+        <i class="bi bi-play-circle me-1"></i>Save and Run
+      </button>
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">More</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><button class="dropdown-item" id="save-template-action"><i class="bi bi-bookmark-plus me-2"></i>Save as Template</button></li>
+          <li><button class="dropdown-item" id="duplicate-workflow-action"><i class="bi bi-files me-2"></i>Duplicate</button></li>
+          <li><button class="dropdown-item" id="share-workflow-action"><i class="bi bi-share me-2"></i>Share</button></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item text-danger" id="delete-workflow-action"><i class="bi bi-trash me-2"></i>Delete</button></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# ====== LEFT PANEL ====== #}
+  <div class="col-lg-8">
+    <div class="card step-canvas">
+      <div class="card-body p-4">
+        <div id="steps-empty-state" class="text-center py-5 d-none">
+          <i class="bi bi-diagram-3 display-3 text-primary mb-3"></i>
+          <h5 class="fw-semibold mb-2">Add your first step to get started</h5>
+          <p class="text-muted mb-3">Build a multi step workflow with drag and drop ordering.</p>
+          <button type="button" class="btn btn-primary" id="empty-add-step-btn">
+            <i class="bi bi-plus-circle me-1"></i>Add Step
+          </button>
+        </div>
+
+        <div id="steps-list" class="sortable-list"></div>
+
+        <div class="mt-3">
+          <button type="button" class="btn w-100 add-step-button py-3" id="add-step-btn">
+            <i class="bi bi-plus-circle me-1"></i>Add Step
+          </button>
+        </div>
+
+        <div class="alert alert-info mt-4 mb-0">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-lightbulb"></i>
+            <div>
+              <strong>Use {variable_name} placeholders</strong> in any field to create runtime parameters.
+              <button class="btn btn-link btn-sm p-0 ms-1" type="button" data-bs-toggle="collapse" data-bs-target="#placeholder-docs" aria-expanded="false">Examples</button>
+              <div class="collapse mt-2" id="placeholder-docs">
+                <div class="small">
+                  <div>Example 1: company_name = {company_name}</div>
+                  <div>Example 2: audience = {target_audience}</div>
+                  <div>Example 3: due_date = {reporting_date}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ====== RIGHT PANEL ====== #}
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header bg-white">
+        <h6 class="mb-0">Workflow Settings</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="wf-description" class="form-label">Description</label>
+          <textarea id="wf-description" class="form-control" rows="4" maxlength="1000">{{ workflow.description if workflow and workflow.description else '' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+          <label for="wf-trigger-type" class="form-label">Trigger Type</label>
+          <select id="wf-trigger-type" class="form-select">
+            {% set trigger_value = (workflow.trigger_type if workflow else 'manual') %}
+            <option value="manual" {% if trigger_value == 'manual' %}selected{% endif %}>Manual (Hand Index)</option>
+            <option value="scheduled" {% if trigger_value == 'scheduled' %}selected{% endif %}>Scheduled (Calendar)</option>
+            <option value="webhook" {% if trigger_value == 'webhook' %}selected{% endif %}>Webhook (Cloud Upload)</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="wf-project-id" class="form-label">Project</label>
+          <select id="wf-project-id" class="form-select">
+            {% for value, label in form.project_id.choices %}
+              <option value="{{ value }}" {% if workflow and workflow.project_id and value == workflow.project_id|string %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" role="switch" id="wf-is-public" {% if workflow and workflow.is_public %}checked{% endif %}>
+          <label class="form-check-label" for="wf-is-public">Share with team members</label>
+        </div>
+
+        <div>
+          <label for="wf-tags" class="form-label">Tags</label>
+          <input type="text" id="wf-tags" class="form-control" placeholder="sales, outreach, weekly" value="{{ ', '.join(workflow.tags_json) if workflow and workflow.tags_json else '' }}">
+          <div class="form-text">Comma separated tags.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="task-type-selector p-3 mb-3" id="step-type-selector" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Step Type Selector</h6>
+        <button class="btn btn-link btn-sm p-0" id="close-step-selector-btn">Cancel</button>
+      </div>
+
+      <div class="input-group mb-2">
+        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+        <input type="text" id="step-type-search" class="form-control" placeholder="Search 481 task types...">
+      </div>
+
+      <div class="category-scroll mb-2" id="step-category-filters">
+        <button type="button" class="btn btn-sm rounded-pill category-pill active me-1 mb-1" data-category="all" data-selection="true">All</button>
+        {% for category in categories %}
+          <button type="button" class="btn btn-sm rounded-pill category-pill me-1 mb-1" data-category="{{ category }}" data-selection="true">{{ category|replace('_', ' ')|title }}</button>
+        {% endfor %}
+      </div>
+
+      <div class="row g-2" id="step-type-grid" style="max-height: 460px; overflow-y:auto;">
+        {% for task in task_registry.values() %}
+          <div class="col-6 task-type-option-wrap"
+               data-category="{{ task.category }}"
+               data-name="{{ task.name|lower }} {{ task.description|lower }}">
+            <div class="task-type-option"
+                 data-task-type="{{ task.id }}"
+                 data-name="{{ task.name|lower }}"
+                 data-category="{{ task.category|lower }}">
+              <div class="fw-semibold small mb-1">{{ task.name }}</div>
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="badge text-bg-light border">{{ task.category_display }}</span>
+                {% if task.requires_web_search %}
+                  <i class="bi bi-globe2 text-primary" title="Uses web search"></i>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if workflow %}
+      <div class="card mb-3">
+        <div class="card-header bg-white"><h6 class="mb-0">Version History</h6></div>
+        <div class="card-body small text-muted">
+          <div class="mb-1">Version {{ workflow.version }}</div>
+          <div class="mb-1">Last saved: {{ workflow.updated_at|timeago }}</div>
+          <div class="mb-1">Created: {{ workflow.created_at|timeago }}</div>
+          <div class="mb-1">Run count: {{ workflow.run_count or 0 }}</div>
+          <div class="mb-2">Last run: {{ workflow.last_run_at|timeago if workflow.last_run_at else 'Never' }}</div>
+          <div>Full version history coming soon.</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header bg-white"><h6 class="mb-0">Estimated Execution Time</h6></div>
+      <div class="card-body">
+        <div class="fw-semibold" id="estimated-time-display">~0 min 0 sec</div>
+        <div class="small text-muted mt-1">Estimated from task metadata.</div>
+        <div class="small mt-2" id="estimated-time-breakdown"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="workflow-data"
+     data-workflow-id="{{ workflow.id if workflow else '' }}"
+     data-initial-steps='{{ workflow.steps_json | tojson if workflow else "[]" }}'
+     data-task-registry='{{ task_registry_json|e }}'
+     data-is-new="{{ 'true' if not workflow else 'false' }}"
+     style="display:none;">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/workflow_builder.js') }}"></script>
+{% endblock %}

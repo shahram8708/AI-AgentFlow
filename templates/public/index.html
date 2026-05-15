@@ -1,0 +1,848 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block meta %}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="AgentFlow helps teams automate research, writing, and operational workflows with production ready AI agents.">
+<meta property="og:title" content="AgentFlow | Stop Doing Work AI Can Do For You">
+<meta property="og:description" content="Join 10,000+ teams automating repetitive work with AgentFlow.">
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .landing-hero {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg-dark) 0%, var(--primary) 60%, var(--accent) 100%);
+    color: var(--bg-card);
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-top: 6rem;
+    overflow: hidden;
+  }
+
+  .landing-hero .shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(6px);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .landing-hero .shape.shape-one {
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 255, 255, 0.16);
+    top: 8%;
+    right: 8%;
+    animation: floatY 9s ease-in-out infinite;
+  }
+
+  .landing-hero .shape.shape-two {
+    width: 140px;
+    height: 140px;
+    background: rgba(255, 255, 255, 0.2);
+    left: 4%;
+    bottom: 18%;
+    animation: floatY 8s ease-in-out infinite reverse;
+  }
+
+  .landing-hero .shape.shape-three {
+    width: 90px;
+    height: 90px;
+    background: rgba(255, 255, 255, 0.22);
+    right: 30%;
+    bottom: 20%;
+    animation: floatY 7s ease-in-out infinite;
+  }
+
+  .hero-dot-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+    background-size: 22px 22px;
+    opacity: 0.18;
+    pointer-events: none;
+  }
+
+  .hero-heading {
+    font-size: clamp(2.25rem, 5vw, 4rem);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  .hero-demo-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--card-shadow-deep);
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+  }
+
+  .hero-demo-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.9rem 1rem;
+  }
+
+  .hero-demo-steps {
+    list-style: none;
+    margin: 0;
+    padding: 1rem;
+  }
+
+  .hero-demo-step {
+    opacity: 0.34;
+    transform: translateY(4px);
+    transition: all 0.45s ease;
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
+  }
+
+  .hero-demo-step:last-child {
+    border-bottom: 0;
+  }
+
+  .hero-demo-step.active,
+  .hero-demo-step.done {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .hero-demo-step.done .step-status {
+    color: var(--success);
+  }
+
+  .hero-progress {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    margin: 0 1rem 1rem;
+    overflow: hidden;
+  }
+
+  .hero-progress-bar {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-light), var(--accent-light));
+    transition: width 0.55s ease;
+  }
+
+  .scroll-indicator {
+    position: absolute;
+    left: 50%;
+    bottom: 1.1rem;
+    transform: translateX(-50%);
+    animation: bounceArrow 1.6s infinite;
+    color: rgba(255, 255, 255, 0.86);
+  }
+
+  .trusted-marquee-wrap {
+    overflow: hidden;
+    min-width: 0;
+    mask-image: linear-gradient(to right, transparent, rgb(0 0 0) 10%, rgb(0 0 0) 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0) 10%, rgb(0 0 0) 90%, transparent);
+  }
+
+  .company-logo-text {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+  }
+
+  .use-case-snippet {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 0.85rem;
+    color: var(--text-primary);
+  }
+
+  .step-number {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--primary);
+  }
+
+  .step-arrow {
+    font-size: 1.7rem;
+    color: var(--text-muted);
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    text-align: center;
+    color: var(--bg-card);
+    height: 100%;
+  }
+
+  .industry-mini-card ul {
+    padding-left: 1rem;
+  }
+
+  .comparison-panel {
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    height: 100%;
+  }
+
+  .comparison-panel.bad {
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+  }
+
+  .comparison-panel.good {
+    background: rgba(5, 150, 105, 0.1);
+    border: 1px solid rgba(5, 150, 105, 0.2);
+  }
+
+  .testimonial-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--bg-card);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+
+  .pricing-preview-card.popular {
+    transform: translateY(-10px);
+    border: 2px solid var(--primary);
+  }
+
+  .final-cta {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+  }
+
+  @keyframes floatY {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-16px);
+    }
+  }
+
+  @keyframes bounceArrow {
+    0%,
+    100% {
+      transform: translate(-50%, 0);
+    }
+    50% {
+      transform: translate(-50%, -8px);
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .landing-hero {
+      padding-top: 7rem;
+      padding-bottom: 5rem;
+    }
+
+    .step-arrow {
+      display: none;
+    }
+
+    .pricing-preview-card.popular {
+      transform: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== HERO SECTION ==================== #}
+  <section class="landing-hero">
+    <div class="hero-dot-pattern"></div>
+    <span class="shape shape-one"></span>
+    <span class="shape shape-two"></span>
+    <span class="shape shape-three"></span>
+
+    <div class="container position-relative">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-7">
+          <h1 class="hero-heading mb-3">Stop Doing Work <span class="text-gradient">AI Can Do</span> For You</h1>
+          <p class="lead mb-4 text-white-50">AgentFlow helps teams automate research, writing, analysis, and operations using production ready AI agents that execute tasks end to end with reliable output quality.</p>
+          <div class="d-flex flex-column flex-sm-row gap-3 mb-3">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4 fw-semibold">Start Free No Credit Card Required</a>
+            <a href="#" class="btn btn-outline-light btn-lg px-4" id="watch-demo-btn">Watch Demo</a>
+          </div>
+          <p class="small text-white-50 mb-0">⭐ Trusted by 10,000+ teams · 4.9/5 rating · 481 task types</p>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="hero-demo-card">
+            <div class="hero-demo-header d-flex justify-content-between align-items-center">
+              <strong class="text-white">Agent Task Runner</strong>
+              <span class="badge text-bg-light">Live</span>
+            </div>
+            <ul class="hero-demo-steps" id="hero-demo-steps">
+              <li class="hero-demo-step active">
+                <span>🔍 Researching sources...</span>
+                <small class="step-status">Running</small>
+              </li>
+              <li class="hero-demo-step">
+                <span>📊 Analyzing data...</span>
+                <small class="step-status">Queued</small>
+              </li>
+              <li class="hero-demo-step">
+                <span>✍️ Generating report...</span>
+                <small class="step-status">Queued</small>
+              </li>
+              <li class="hero-demo-step">
+                <span>✅ Complete</span>
+                <small class="step-status">Waiting</small>
+              </li>
+            </ul>
+            <div class="hero-progress">
+              <div class="hero-progress-bar" id="hero-progress-bar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-indicator">
+      <i class="bi bi-chevron-double-down fs-4"></i>
+    </div>
+  </section>
+
+  {# ==================== SOCIAL PROOF BAR ==================== #}
+  <section class="bg-white border-bottom py-3">
+    <div class="container d-flex flex-column flex-lg-row align-items-center gap-3">
+      <p class="text-uppercase text-muted small fw-semibold mb-0">Trusted by teams at</p>
+      <div class="trusted-marquee-wrap flex-grow-1">
+        <div class="marquee">
+          <div class="marquee-track">
+            <span class="company-logo-text">ACCENTURE</span>
+            <span class="company-logo-text">DELOITTE</span>
+            <span class="company-logo-text">WIPRO</span>
+            <span class="company-logo-text">INFOSYS</span>
+            <span class="company-logo-text">TATA</span>
+            <span class="company-logo-text">BYJU'S</span>
+            <span class="company-logo-text">RAZORPAY</span>
+            <span class="company-logo-text">ZOMATO</span>
+            <span class="company-logo-text">PAYTM</span>
+            <span class="company-logo-text">OYO</span>
+            <span class="company-logo-text">ACCENTURE</span>
+            <span class="company-logo-text">DELOITTE</span>
+            <span class="company-logo-text">WIPRO</span>
+            <span class="company-logo-text">INFOSYS</span>
+            <span class="company-logo-text">TATA</span>
+            <span class="company-logo-text">BYJU'S</span>
+            <span class="company-logo-text">RAZORPAY</span>
+            <span class="company-logo-text">ZOMATO</span>
+            <span class="company-logo-text">PAYTM</span>
+            <span class="company-logo-text">OYO</span>
+          </div>
+        </div>
+      </div>
+      <span class="badge rounded-pill text-bg-light border px-3 py-2">10,000+ teams</span>
+    </div>
+  </section>
+
+  {# ==================== USE CASE PREVIEW ==================== #}
+  <section class="py-5 py-lg-6">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">What can you automate?</h2>
+        <p class="text-muted mb-0">From quick research to production grade output generation in minutes.</p>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body p-4">
+              <span class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background: rgba(26, 86, 219, 0.12); color: var(--primary);">
+                <i class="bi bi-search fs-5"></i>
+              </span>
+              <h3 class="h5">Research</h3>
+              <p class="text-muted">Collect and synthesize findings from multiple sources into one structured brief.</p>
+              <pre class="use-case-snippet mb-3">Top 5 competitors identified
+Pricing benchmark created
+Source citations attached</pre>
+              <a href="{{ url_for('public.use_cases', category='web_research') }}" class="btn btn-link p-0">Try this →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body p-4">
+              <span class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background: rgba(124, 58, 237, 0.14); color: var(--accent);">
+                <i class="bi bi-pen fs-5"></i>
+              </span>
+              <h3 class="h5">Writing</h3>
+              <p class="text-muted">Generate polished drafts for blogs, outreach, and internal documentation.</p>
+              <pre class="use-case-snippet mb-3">Subject line variants ready
+Tone adjusted for ICP
+CTA options generated</pre>
+              <a href="{{ url_for('public.use_cases', category='file_creation') }}" class="btn btn-link p-0">Try this →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body p-4">
+              <span class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background: rgba(5, 150, 105, 0.15); color: var(--success);">
+                <i class="bi bi-code-slash fs-5"></i>
+              </span>
+              <h3 class="h5">Code</h3>
+              <p class="text-muted">Create, debug, and document production code with workflow level consistency.</p>
+              <pre class="use-case-snippet mb-3">Unit tests generated
+API integration scaffolded
+Security checks summarized</pre>
+              <a href="{{ url_for('public.use_cases', category='code_writing') }}" class="btn btn-link p-0">Try this →</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== HOW IT WORKS ==================== #}
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">Simple as 1-2-3</h2>
+        <p class="text-muted mb-0">Describe the task once. AgentFlow executes the rest.</p>
+      </div>
+      <div class="row g-4 align-items-stretch">
+        <div class="col-md-4">
+          <div class="card h-100 border-0 bg-light">
+            <div class="card-body p-4">
+              <div class="step-number mb-2">1</div>
+              <h3 class="h5">Describe Your Task</h3>
+              <p class="text-muted mb-0">Type what you need in plain language. Add context, files, or links for deeper outputs.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-center justify-content-center d-none d-md-flex">
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="col-md-4 d-md-none"></div>
+      </div>
+      <div class="row g-4 align-items-stretch mt-1">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div class="card-body p-4">
+              <div class="step-number mb-2">2</div>
+              <h3 class="h5">AI Agent Executes</h3>
+              <p class="text-muted mb-0">The agent researches, browses, writes, and validates outputs using your chosen workflow path.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-center justify-content-center d-none d-md-flex">
+          <span class="step-arrow">→</span>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100 border-0 bg-light">
+            <div class="card-body p-4">
+              <div class="step-number mb-2">3</div>
+              <h3 class="h5">Review &amp; Download</h3>
+              <p class="text-muted mb-0">Get structured final output ready to share, export, or plug into your team workflows instantly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== ANIMATED STATS COUNTER ==================== #}
+  <section class="py-5" style="background: linear-gradient(135deg, var(--bg-dark), var(--primary), var(--accent));">
+    <div class="container py-3">
+      <div class="row g-4">
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="mb-2"><i class="bi bi-collection fs-4"></i></div>
+            <div class="display-6 fw-bold counter-animate" data-target="{{ home_stats.task_types_total }}">0</div>
+            <div class="small text-white-50">Task Types Available</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="mb-2"><i class="bi bi-people fs-4"></i></div>
+            <div class="display-6 fw-bold counter-animate" data-target="{{ home_stats.team_total }}">0</div>
+            <div class="small text-white-50">Teams Using Platform</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="mb-2"><i class="bi bi-check2-circle fs-4"></i></div>
+            <div class="display-6 fw-bold counter-animate" data-target="{{ [home_stats.task_total, 50000000]|max }}">0</div>
+            <div class="small text-white-50">Tasks Completed</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="mb-2"><i class="bi bi-shield-check fs-4"></i></div>
+            <div class="display-6 fw-bold">99.9%</div>
+            <div class="small text-white-50">Uptime SLA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== INDUSTRY SOLUTIONS PREVIEW ==================== #}
+  <section class="py-5 bg-white">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">Built for Every Industry</h2>
+        <p class="text-muted mb-0">Pre built workflows tailored for regulated and high velocity teams.</p>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-bank me-2 text-primary"></i>Finance</h3>
+              <ul class="small text-muted mb-3">
+                <li>Account reconciliation</li>
+                <li>Compliance reporting</li>
+                <li>Fraud monitoring support</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='finance') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-heart-pulse me-2 text-danger"></i>Healthcare</h3>
+              <ul class="small text-muted mb-3">
+                <li>Prior authorization</li>
+                <li>Claims adjudication</li>
+                <li>Patient communication</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='healthcare') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-shield-check me-2 text-warning"></i>Legal</h3>
+              <ul class="small text-muted mb-3">
+                <li>Contract lifecycle support</li>
+                <li>Regulatory updates</li>
+                <li>Docket and deadline tracking</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='legal') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-bag-check me-2 text-success"></i>E Commerce</h3>
+              <ul class="small text-muted mb-3">
+                <li>Order orchestration</li>
+                <li>Inventory automation</li>
+                <li>Returns and refunds</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='ecommerce') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-person-workspace me-2 text-info"></i>HR</h3>
+              <ul class="small text-muted mb-3">
+                <li>Applicant tracking</li>
+                <li>Onboarding workflows</li>
+                <li>People analytics reporting</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='hr') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <article class="card industry-mini-card h-100 hover-lift">
+            <div class="card-body">
+              <h3 class="h6 fw-bold"><i class="bi bi-megaphone me-2" style="color: var(--accent);"></i>Marketing</h3>
+              <ul class="small text-muted mb-3">
+                <li>SEO content production</li>
+                <li>Campaign orchestration</li>
+                <li>Attribution reporting</li>
+              </ul>
+              <a href="{{ url_for('public.industry', slug='marketing') }}" class="btn btn-link p-0">Explore →</a>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="text-center mt-4">
+        <a href="{{ url_for('public.use_cases') }}" class="btn btn-outline-primary">View All 21 Industries →</a>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== FEATURE HIGHLIGHTS COMPARISON ==================== #}
+  <section class="py-5 border-top border-bottom">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">How AgentFlow Is Different</h2>
+      </div>
+      <div class="row g-4 align-items-stretch">
+        <div class="col-lg-5">
+          <div class="comparison-panel bad">
+            <h3 class="h5 mb-3">Traditional Way</h3>
+            <ul class="list-unstyled mb-0 d-grid gap-2 text-danger-emphasis">
+              <li><i class="bi bi-x-circle me-2"></i>Hours of manual research</li>
+              <li><i class="bi bi-x-circle me-2"></i>Inconsistent output quality</li>
+              <li><i class="bi bi-x-circle me-2"></i>Fragmented tools and handoffs</li>
+              <li><i class="bi bi-x-circle me-2"></i>Limited execution visibility</li>
+            </ul>
+          </div>
+        </div>
+        <div class="col-lg-2 d-flex align-items-center justify-content-center">
+          <span class="display-6 fw-bold text-muted">vs</span>
+        </div>
+        <div class="col-lg-5">
+          <div class="comparison-panel good">
+            <h3 class="h5 mb-3">With AgentFlow</h3>
+            <ul class="list-unstyled mb-0 d-grid gap-2 text-success-emphasis">
+              <li><i class="bi bi-check-circle me-2"></i>4 minute AI research workflows</li>
+              <li><i class="bi bi-check-circle me-2"></i>Structured and cited outputs</li>
+              <li><i class="bi bi-check-circle me-2"></i>Single workflow execution layer</li>
+              <li><i class="bi bi-check-circle me-2"></i>Transparent logs and governance</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== TESTIMONIALS SECTION ==================== #}
+  <section class="py-5 bg-white">
+    <div class="container py-3">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold">What Our Users Say</h2>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body">
+              <div class="text-warning mb-2">★★★★★</div>
+              <p class="fst-italic text-muted">"We cut campaign turnaround from days to hours. Our team now ships far more content without sacrificing quality controls."</p>
+              <div class="d-flex align-items-center gap-3 mt-3">
+                <span class="testimonial-avatar">NM</span>
+                <div>
+                  <strong class="d-block">Nikita Mehra</strong>
+                  <small class="text-muted">Marketing Manager, Flipkart</small>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body">
+              <div class="text-warning mb-2">★★★★★</div>
+              <p class="fst-italic text-muted">"As a startup founder, AgentFlow acts like an extra operations team. We run research and execution tasks daily with clear output quality."</p>
+              <div class="d-flex align-items-center gap-3 mt-3">
+                <span class="testimonial-avatar">AR</span>
+                <div>
+                  <strong class="d-block">Aman Reddy</strong>
+                  <small class="text-muted">Founder, Bengaluru SaaS Studio</small>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="card h-100 hover-lift">
+            <div class="card-body">
+              <div class="text-warning mb-2">★★★★★</div>
+              <p class="fst-italic text-muted">"Financial reporting workflows that took us a week are now delivered in a day with better consistency and stronger audit readiness."</p>
+              <div class="d-flex align-items-center gap-3 mt-3">
+                <span class="testimonial-avatar">PS</span>
+                <div>
+                  <strong class="d-block">Pratik Shah</strong>
+                  <small class="text-muted">Financial Analyst, HDFC</small>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== PRICING PREVIEW ==================== #}
+  <section class="py-5 border-top">
+    <div class="container py-3">
+      <div class="text-center mb-4">
+        <h2 class="fw-bold">Simple, Transparent Pricing</h2>
+        <p class="text-muted">All plans priced in ₹ INR, designed for teams at every stage.</p>
+        <div class="btn-group mt-2" role="group" aria-label="Billing cycle toggle" id="home-billing-toggle">
+          <button type="button" class="btn btn-outline-primary active" data-cycle="monthly" data-selection="true">Monthly</button>
+          <button type="button" class="btn btn-outline-primary" data-cycle="annual" data-selection="true">Annual</button>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        {% for plan in plans %}
+          <div class="col-md-4">
+            <article class="card h-100 pricing-preview-card {% if plan.slug == 'pro' %}popular{% endif %}">
+              <div class="card-body p-4 d-flex flex-column">
+                {% if plan.slug == 'pro' %}
+                  <span class="badge rounded-pill text-bg-primary mb-2 align-self-start">Most Popular</span>
+                {% endif %}
+                <h3 class="h5 fw-bold mb-1">{{ plan.name }}</h3>
+                <p
+                  class="display-6 fw-bold mb-0 home-plan-price"
+                  data-monthly="{{ plan.price_monthly_inr }}"
+                  data-annual="{{ plan.price_annual_inr }}"
+                >{{ plan.monthly_price_display }}</p>
+                <small class="text-muted mb-3 home-plan-cycle">/month</small>
+
+                {% set features = plan.features_json if plan.features_json is iterable else [] %}
+                <ul class="small text-muted ps-3 mb-4">
+                  {% for feature in features[:4] %}
+                    <li>{{ feature | replace('_', ' ') | title }}</li>
+                  {% endfor %}
+                </ul>
+
+                {% if plan.slug == 'free' %}
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary mt-auto">Get Started</a>
+                {% else %}
+                  <a href="{{ url_for('auth.register') }}" class="btn btn-primary mt-auto" data-razorpay="true" data-plan-slug="{{ plan.slug }}">Upgrade</a>
+                {% endif %}
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="text-center mt-4">
+        <a href="{{ url_for('public.pricing') }}" class="btn btn-link">See Full Pricing</a>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== FINAL CTA SECTION ==================== #}
+  <section class="py-5">
+    <div class="container py-3">
+      <div class="final-cta text-center p-4 p-lg-5">
+        <h2 class="fw-bold mb-2">Ready to Get Your Time Back?</h2>
+        <p class="mb-4 text-white-50">Join 10,000+ teams automating their work with AI. Start free, no credit card required.</p>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4 fw-semibold">Start Free Today →</a>
+        <p class="small mt-3 mb-0 text-white-50">No credit card required · Cancel anytime · Free forever plan available</p>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var demoSteps = document.querySelectorAll("#hero-demo-steps .hero-demo-step");
+    var progressBar = document.getElementById("hero-progress-bar");
+    var index = 0;
+
+    function updateDemo() {
+      demoSteps.forEach(function (step, stepIndex) {
+        step.classList.remove("active", "done");
+        var status = step.querySelector(".step-status");
+        if (stepIndex < index) {
+          step.classList.add("done");
+          if (status) {
+            status.textContent = "Done";
+          }
+        } else if (stepIndex === index) {
+          step.classList.add("active");
+          if (status) {
+            status.textContent = "Running";
+          }
+        } else {
+          if (status) {
+            status.textContent = "Queued";
+          }
+        }
+      });
+
+      var progress = ((index + 1) / demoSteps.length) * 100;
+      if (progressBar) {
+        progressBar.style.width = progress + "%";
+      }
+
+      index = (index + 1) % demoSteps.length;
+    }
+
+    updateDemo();
+    setInterval(updateDemo, 1700);
+
+    var watchBtn = document.getElementById("watch-demo-btn");
+    if (watchBtn) {
+      watchBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        if (window.showToast) {
+          window.showToast("Demo video is coming soon.", "info", 2500);
+        }
+      });
+    }
+
+    var pricingToggle = document.getElementById("home-billing-toggle");
+    var priceNodes = document.querySelectorAll(".home-plan-price");
+    var cycleNodes = document.querySelectorAll(".home-plan-cycle");
+
+    function formatPlanPrice(paise, cycle) {
+      var value = Number(paise || 0);
+      if (value < 0) {
+        return cycle === "annual" ? "Custom/year" : "Custom/month";
+      }
+      return window.formatINR ? window.formatINR(value) : ("₹" + Math.floor(value / 100).toLocaleString("en-IN"));
+    }
+
+    function setCycle(cycle) {
+      priceNodes.forEach(function (node) {
+        var paise = cycle === "annual" ? node.dataset.annual : node.dataset.monthly;
+        node.textContent = formatPlanPrice(paise, cycle);
+      });
+      cycleNodes.forEach(function (node) {
+        node.textContent = cycle === "annual" ? "/year" : "/month";
+      });
+    }
+
+    if (pricingToggle) {
+      pricingToggle.querySelectorAll("button").forEach(function (button) {
+        button.addEventListener("click", function () {
+          pricingToggle.querySelectorAll("button").forEach(function (btn) {
+            btn.classList.remove("active");
+          });
+          button.classList.add("active");
+          setCycle(button.dataset.cycle || "monthly");
+        });
+      });
+    }
+
+    setCycle("monthly");
+  })();
+</script>
+{% endblock %}

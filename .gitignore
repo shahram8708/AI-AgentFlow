@@ -1,0 +1,115 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.py,cover
+
+# Python tool caches
+.cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Python environment managers
+.venv*/
+.pyenv/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.env
+*.local
+local.settings.json
+
+# Secret and key material
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.egg
+site/
+wheelhouse/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+coverage.xml
+nosetests.xml
+test-results.xml
+pytestdebug.log
+
+# Flask and Celery runtime artifacts
+instance/
+.webassets-cache
+celerybeat-schedule
+celerybeat.pid
+celerybeat-schedule.*
+flower.db
+flower.db-journal
+
+# Project runtime generated files
+uploads/
+logs/
+*.log
+tmp/
+temp/
+*.pid
+*.seed
+*.out
+*.err
+
+# Local databases
+*.sqlite3
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Editor and OS files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+Icon?
+
+# Swap/backup files
+*.swp
+*.swo
+*~
+
+# Optional local dev tooling
+.history/

@@ -1,0 +1,99 @@
+<footer class="footer public-footer mt-0">
+  <div class="container">
+    <div class="footer-newsletter rounded-4 p-4 p-lg-5 mb-5">
+      <div class="row align-items-center g-3">
+        <div class="col-lg-6">
+          <h3 class="h5 text-white mb-1">Get AI automation tips in your inbox</h3>
+          <p class="text-white-50 mb-0">Weekly playbooks, launch updates, and practical workflow ideas.</p>
+        </div>
+        <div class="col-lg-6">
+          <form class="newsletter-form d-flex flex-column flex-sm-row gap-2" method="post" action="{{ url_for('public.newsletter_subscribe') }}">
+            <input type="email" class="form-control form-control-lg" name="email" placeholder="Work email" required>
+            <button type="submit" class="btn btn-light btn-lg px-4">Subscribe</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-grid">
+      <div>
+        <a class="navbar-brand public-navbar-brand mb-3 d-inline-flex" href="{{ url_for('public.home') }}">
+          <span class="brand-badge"><i class="bi bi-lightning-charge-fill"></i></span>
+          <span>AgentFlow</span>
+        </a>
+        <p class="text-white-50 mb-3">AI workflows that save teams hours every single day.</p>
+        <div class="d-flex gap-2 mb-3">
+          <a class="social-btn" href="#" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
+          <a class="social-btn" href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
+          <a class="social-btn" href="#" aria-label="GitHub"><i class="bi bi-github"></i></a>
+          <a class="social-btn" href="#" aria-label="YouTube"><i class="bi bi-youtube"></i></a>
+        </div>
+        <span class="badge text-bg-light text-dark">Made in India 🇮🇳</span>
+      </div>
+
+      <div>
+        <h6 class="text-uppercase small fw-bold mb-3">Product</h6>
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          <li><a href="{{ url_for('public.features') }}">Features</a></li>
+          <li><a href="{{ url_for('public.pricing') }}">Pricing</a></li>
+          <li><a href="{{ url_for('public.use_cases') }}">Use Cases</a></li>
+          <li><a href="{{ url_for('integrations.integrations_home') }}">Integrations</a></li>
+          <li><a href="{{ url_for('templates_bp.templates_home') }}">Templates</a></li>
+          <li><a href="{{ url_for('public.changelog') }}">Changelog</a></li>
+          <li><a href="/docs">API Docs</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h6 class="text-uppercase small fw-bold mb-3">Industries</h6>
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          <li><a href="{{ url_for('public.industry', slug='finance') }}">Finance</a></li>
+          <li><a href="{{ url_for('public.industry', slug='healthcare') }}">Healthcare</a></li>
+          <li><a href="{{ url_for('public.industry', slug='legal') }}">Legal</a></li>
+          <li><a href="{{ url_for('public.industry', slug='education') }}">Education</a></li>
+          <li><a href="{{ url_for('public.industry', slug='ecommerce') }}">E-Commerce</a></li>
+          <li><a href="{{ url_for('public.industry', slug='marketing') }}">Marketing</a></li>
+          <li><a href="{{ url_for('public.industry', slug='it-software') }}">IT &amp; Dev</a></li>
+          <li><a href="{{ url_for('public.use_cases') }}">View All</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h6 class="text-uppercase small fw-bold mb-3">Company</h6>
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          <li><a href="{{ url_for('public.about') }}">About Us</a></li>
+          <li><a href="{{ url_for('public.blog') }}">Blog</a></li>
+          <li><a href="{{ url_for('public.contact') }}">Contact Us</a></li>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Status Page</a></li>
+          <li><a href="/legal/privacy-policy">Privacy Policy</a></li>
+          <li><a href="/legal/terms-of-service">Terms of Service</a></li>
+          <li><a href="/legal/gdpr">GDPR</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="footer-divider my-4">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 pb-2">
+      <p class="text-white-50 mb-0">© 2026 AgentFlow. All rights reserved.</p>
+      <div class="d-flex gap-3 small">
+        <a href="/legal/privacy-policy">Privacy Policy</a>
+        <a href="/legal/terms-of-service">Terms</a>
+        <a href="/legal/cookie-policy">Cookie Policy</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    document.querySelectorAll(".newsletter-form").forEach(function (form) {
+      form.addEventListener("submit", function () {
+        if (window.showToast) {
+          window.showToast("Thanks for subscribing", "success", 2500);
+        }
+      });
+    });
+  })();
+</script>

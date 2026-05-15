@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ post.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .blog-post-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 3.5rem;
+  }
+
+  .author-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--bg-card);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+
+  .blog-content h2,
+  .blog-content h3 {
+    scroll-margin-top: 95px;
+  }
+
+  .blog-content p {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: 1rem;
+  }
+
+  .toc-sidebar {
+    position: sticky;
+    top: 88px;
+  }
+
+  .toc-sidebar a {
+    text-decoration: none;
+    color: var(--text-secondary);
+  }
+
+  .toc-sidebar a:hover {
+    color: var(--primary);
+  }
+
+  @media (max-width: 991.98px) {
+    .toc-sidebar {
+      position: static;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {% set author_parts = post.author_name.split(' ') %}
+  {% set initials = author_parts[0][0] ~ (author_parts[1][0] if author_parts|length > 1 else '') %}
+
+  {# ==================== BREADCRUMB ==================== #}
+  <section class="bg-white border-bottom" style="padding-top: 76px;">
+    <div class="container py-3">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('public.blog') }}">Blog</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('public.blog', category=post.category|lower|replace('&', 'and')|replace('/', '-')|replace(' ', '-')) }}">{{ post.category }}</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ post.title }}</li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  {# ==================== ARTICLE HERO ==================== #}
+  <section class="blog-post-hero">
+    <div class="container">
+      <h1 class="display-5 fw-bold mb-3">{{ post.title }}</h1>
+      <p class="lead text-white-50 mb-4">{{ post.excerpt }}</p>
+      <div class="d-flex align-items-center flex-wrap gap-3">
+        <span class="author-avatar">{{ initials }}</span>
+        <div>
+          <strong class="d-block">{{ post.author_name }}</strong>
+          <small class="text-white-50">{{ post.author_title }} · {{ post.published_date }} · {{ post.read_time_minutes }} min read</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== ARTICLE BODY ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <article class="blog-content" id="blog-content">
+            {{ post.content | safe }}
+          </article>
+
+          <div class="d-flex flex-wrap gap-2 mt-4 mb-5">
+            <button class="btn btn-outline-primary btn-sm" id="share-linkedin"><i class="bi bi-linkedin me-1"></i>Share</button>
+            <button class="btn btn-outline-primary btn-sm" id="share-twitter"><i class="bi bi-twitter-x me-1"></i>Tweet</button>
+            <button class="btn btn-outline-primary btn-sm" id="copy-link"><i class="bi bi-link-45deg me-1"></i>Copy Link</button>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-body p-4">
+              <h3 class="h5 fw-bold mb-3">About the Author</h3>
+              <div class="d-flex align-items-start gap-3">
+                <span class="author-avatar">{{ initials }}</span>
+                <div>
+                  <strong class="d-block">{{ post.author_name }}</strong>
+                  <small class="text-muted d-block mb-2">{{ post.author_title }}</small>
+                  <p class="text-muted mb-0">{{ post.author_name }} writes about practical AI automation systems that help teams improve speed, quality, and operational consistency.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="h4 fw-bold mb-3">Related Posts</h3>
+            <div class="row g-3">
+              {% for related in related_posts %}
+                <div class="col-md-4">
+                  <article class="card h-100 hover-lift">
+                    <div class="card-body d-flex flex-column">
+                      <span class="badge text-bg-light border align-self-start mb-2">{{ related.category }}</span>
+                      <h4 class="h6 fw-bold">{{ related.title }}</h4>
+                      <a href="{{ url_for('public.blog_post', slug=related.slug) }}" class="btn btn-link p-0 mt-auto">Read More →</a>
+                    </div>
+                  </article>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <a href="{{ url_for('public.blog') }}" class="btn btn-link p-0">← Back to Blog</a>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <aside class="toc-sidebar card">
+            <div class="card-body">
+              <h3 class="h6 fw-bold mb-3">Table of Contents</h3>
+              <ul class="list-unstyled d-grid gap-2 small mb-0" id="toc-list"></ul>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var content = document.getElementById("blog-content");
+    var tocList = document.getElementById("toc-list");
+
+    if (content && tocList) {
+      var headings = content.querySelectorAll("h2, h3");
+      headings.forEach(function (heading, index) {
+        var slug = (heading.textContent || "section")
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9\s]/g, "")
+          .replace(/\s+/g, "-") + "-" + index;
+        heading.id = slug;
+
+        var li = document.createElement("li");
+        if (heading.tagName.toLowerCase() === "h3") {
+          li.style.paddingLeft = "0.8rem";
+        }
+        var link = document.createElement("a");
+        link.href = "#" + slug;
+        link.textContent = heading.textContent;
+        li.appendChild(link);
+        tocList.appendChild(li);
+      });
+    }
+
+    var pageUrl = window.location.href;
+    var title = encodeURIComponent(document.title);
+    var encodedUrl = encodeURIComponent(pageUrl);
+
+    var linkedinButton = document.getElementById("share-linkedin");
+    var twitterButton = document.getElementById("share-twitter");
+    var copyButton = document.getElementById("copy-link");
+
+    if (linkedinButton) {
+      linkedinButton.addEventListener("click", function () {
+        window.open("https://www.linkedin.com/sharing/share-offsite/?url=" + encodedUrl, "_blank", "noopener");
+      });
+    }
+
+    if (twitterButton) {
+      twitterButton.addEventListener("click", function () {
+        window.open("https://twitter.com/intent/tweet?text=" + title + "&url=" + encodedUrl, "_blank", "noopener");
+      });
+    }
+
+    if (copyButton) {
+      copyButton.addEventListener("click", function () {
+        if (window.copyToClipboard) {
+          window.copyToClipboard(pageUrl, copyButton);
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

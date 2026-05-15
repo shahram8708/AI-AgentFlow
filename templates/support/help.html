@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}Help Center - AgentFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+  .help-hero {
+    background: linear-gradient(120deg, var(--bg-dark), var(--primary), var(--accent));
+    color: var(--bg-card);
+    padding: 7.5rem 0 4rem;
+  }
+
+  .help-hero .form-control,
+  .help-hero .input-group-text {
+    border: none;
+    border-radius: var(--border-radius);
+  }
+
+  .help-hero .input-group {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  }
+
+  .help-category-card {
+    height: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+  }
+
+  .help-category-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .help-category-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(26, 86, 219, 0.12);
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .popular-article-item {
+    transition: var(--transition);
+    border-radius: var(--border-radius);
+  }
+
+  .popular-article-item:hover {
+    background: var(--bg-light-subtle, #f8f9fa);
+    padding-left: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% include 'partials/navbar_public.html' %}
+{% endblock %}
+
+{% block content %}
+<main>
+  {# ==================== HERO ==================== #}
+  <section class="help-hero">
+    <div class="container text-center">
+      <h1 class="display-5 fw-bold mb-3">How can we help?</h1>
+      <p class="lead text-white-50 mb-4">Browse by category or search for answers across our full knowledge base.</p>
+      <div class="mx-auto" style="max-width: 620px;">
+        <div class="input-group input-group-lg">
+          <span class="input-group-text bg-white text-muted"><i class="bi bi-search"></i></span>
+          <input type="text" id="help-search" class="form-control" placeholder="Search articles, guides, FAQs…">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ==================== CATEGORY CARDS GRID ==================== #}
+  <section class="py-5">
+    <div class="container">
+      <div class="row g-4" id="help-category-grid">
+        {% for category in categories %}
+          <div class="col-lg-4 col-md-6 help-category-item" data-search="{{ category.title|lower }} {{ category.articles|join(' ')|lower }}">
+            <article class="help-category-card card">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <span class="help-category-icon">
+                    <i class="bi {{ category.icon }} fs-5"></i>
+                  </span>
+                  <span class="badge rounded-pill text-bg-light border">{{ category.articles|length }} articles</span>
+                </div>
+
+                <h3 class="h5 fw-bold mb-2">{{ category.title }}</h3>
+
+                <ul class="small text-muted ps-3 mb-3">
+                  {% for article in category.articles[:3] %}
+                    <li>{{ article }}</li>
+                  {% endfor %}
+                </ul>
+
+                <a href="#" class="btn btn-sm btn-link p-0 text-decoration-none">View all articles →</a>
+              </div>
+            </article>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ==================== POPULAR ARTICLES + CONTACT ==================== #}
+  <section class="py-5 bg-white border-top border-bottom">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <h2 class="h4 fw-bold mb-4">Most Helpful Articles</h2>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+              <ul class="list-group list-group-flush">
+                {% for article in popular_articles %}
+                  <li class="list-group-item px-4 py-3 popular-article-item d-flex justify-content-between align-items-center">
+                    <span class="fw-medium">{{ article }}</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <h2 class="h4 fw-bold mb-4">Still need help?</h2>
+          <div class="card border-0 shadow-sm h-auto">
+            <div class="card-body p-4 d-flex flex-column gap-3">
+              <div class="d-flex gap-3 align-items-start">
+                <span class="help-category-icon flex-shrink-0"><i class="bi bi-chat-dots fs-5"></i></span>
+                <div>
+                  <h6 class="fw-bold mb-1">Live Chat</h6>
+                  <p class="text-muted small mb-0">Chat with our team in real time during business hours.</p>
+                </div>
+              </div>
+              <div class="d-flex gap-3 align-items-start">
+                <span class="help-category-icon flex-shrink-0"><i class="bi bi-envelope fs-5"></i></span>
+                <div>
+                  <h6 class="fw-bold mb-1">Email Support</h6>
+                  <p class="text-muted small mb-0">Typical reply time under 4 hours on business days.</p>
+                </div>
+              </div>
+              <div class="mt-2">
+                {% if current_user.is_authenticated %}
+                  <a href="/support" class="btn btn-primary w-100">Open a Support Ticket →</a>
+                {% else %}
+                  <a href="/auth/register" class="btn btn-outline-primary w-100">Create an account to get help</a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% include 'partials/footer.html' %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    var input = document.getElementById('help-search');
+    var cards = Array.from(document.querySelectorAll('.help-category-item'));
+    if (!input) return;
+
+    function applyFilter() {
+      var q = input.value.trim().toLowerCase();
+      cards.forEach(function (card) {
+        var hay = card.dataset.search || '';
+        card.classList.toggle('d-none', q !== '' && !hay.includes(q));
+      });
+    }
+
+    input.addEventListener('input', applyFilter);
+
+    var query = new URLSearchParams(window.location.search).get('q');
+    if (query) {
+      input.value = query;
+      applyFilter();
+    }
+  })();
+</script>
+{% endblock %}

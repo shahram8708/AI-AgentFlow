@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - AgentFlow{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <aside class="col-lg-3">
+    <div class="card border-0 shadow-sm sticky-top" style="top: 90px;">
+      <div class="card-body">
+        <h6 class="fw-semibold">Table of Contents</h6>
+        <nav class="nav flex-column small">
+          <a class="nav-link px-0" href="#intro">1. Introduction</a>
+          <a class="nav-link px-0" href="#collect">2. Information We Collect</a>
+          <a class="nav-link px-0" href="#use">3. How We Use Information</a>
+          <a class="nav-link px-0" href="#security">4. Storage and Security</a>
+          <a class="nav-link px-0" href="#sharing">5. Data Sharing</a>
+          <a class="nav-link px-0" href="#retention">6. Data Retention</a>
+          <a class="nav-link px-0" href="#rights">7. Your Rights</a>
+          <a class="nav-link px-0" href="#gdpr">8. GDPR Compliance</a>
+          <a class="nav-link px-0" href="#india">9. Indian Data Protection</a>
+          <a class="nav-link px-0" href="#cookies">10. Cookies</a>
+          <a class="nav-link px-0" href="#children">11. Children's Privacy</a>
+          <a class="nav-link px-0" href="#changes">12. Policy Changes</a>
+          <a class="nav-link px-0" href="#contact">13. Contact Us</a>
+        </nav>
+      </div>
+    </div>
+  </aside>
+
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4 p-lg-5">
+        <h1 class="h3 mb-1">Privacy Policy</h1>
+        <p class="text-muted">Effective date: January 2024 | Last updated: April 2025</p>
+
+        <section id="intro" class="mb-4">
+          <h2 class="h5">1. Introduction and Data Controller Information</h2>
+          <p>AgentFlow Technologies Pvt. Ltd., Ahmedabad, Gujarat, India, is the data controller for personal data processed through the AgentFlow platform.</p>
+        </section>
+
+        <section id="collect" class="mb-4">
+          <h2 class="h5">2. What Information We Collect</h2>
+          <p>We collect account data, profile data, task inputs and outputs, usage analytics, and device or browser metadata needed to secure and operate the service.</p>
+        </section>
+
+        <section id="use" class="mb-4">
+          <h2 class="h5">3. How We Use Your Information</h2>
+          <p>We process data to deliver core functionality, improve product quality, manage billing, send service communications, and provide account support.</p>
+        </section>
+
+        <section id="security" class="mb-4">
+          <h2 class="h5">4. Data Storage and Security</h2>
+          <p>Platform data is stored in PostgreSQL with encrypted at-rest storage. Credential vault data uses AES-256-GCM encryption. Payments are handled through Razorpay with PCI DSS controls. We do not store plaintext credentials.</p>
+        </section>
+
+        <section id="sharing" class="mb-4">
+          <h2 class="h5">5. Data Sharing</h2>
+          <p>We do not sell personal data. We share data only with service providers required for operations, such as Razorpay for payments, Google Gemini APIs for AI processing, and SMTP providers for email delivery.</p>
+        </section>
+
+        <section id="retention" class="mb-4">
+          <h2 class="h5">6. Data Retention</h2>
+          <p>Output retention follows plan terms. Free plan output retention is 30 days. Account data is deleted within 30 days of approved account deletion requests, except where longer retention is legally required.</p>
+        </section>
+
+        <section id="rights" class="mb-4">
+          <h2 class="h5">7. Your Rights</h2>
+          <p>You may request access, correction, deletion, portability, restriction, and objection to processing, subject to applicable law and verification procedures.</p>
+        </section>
+
+        <section id="gdpr" class="mb-4">
+          <h2 class="h5">8. GDPR Compliance</h2>
+          <p>For users in the EEA, we process data under appropriate lawful bases and support data subject rights. You may lodge complaints with your local supervisory authority.</p>
+        </section>
+
+        <section id="india" class="mb-4">
+          <h2 class="h5">9. Indian Data Protection</h2>
+          <p>AgentFlow aligns processing practices with the Digital Personal Data Protection Act 2023 and related rules as applicable.</p>
+        </section>
+
+        <section id="cookies" class="mb-4">
+          <h2 class="h5">10. Cookies</h2>
+          <p>See our <a href="/cookies">Cookie Policy</a> for details on session, authentication, and preference storage behavior.</p>
+        </section>
+
+        <section id="children" class="mb-4">
+          <h2 class="h5">11. Children's Privacy</h2>
+          <p>AgentFlow is not directed to users under 18 years of age.</p>
+        </section>
+
+        <section id="changes" class="mb-4">
+          <h2 class="h5">12. Changes to Privacy Policy</h2>
+          <p>Material changes are communicated with at least 30 days notice before they take effect.</p>
+        </section>
+
+        <section id="contact" class="mb-0">
+          <h2 class="h5">13. Contact Us</h2>
+          <p class="mb-1">Email: privacy@agentflow.ai</p>
+          <p class="mb-0">Postal: AgentFlow Technologies Pvt. Ltd., Ahmedabad, Gujarat, India</p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
