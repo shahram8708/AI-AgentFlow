@@ -765,7 +765,3 @@ curl https://raw.githubusercontent.com/github/choosealicense.com/gh-pages/_licen
 Author information was not found in the repository metadata. If you're the maintainer and reading this, add a `package.json` or `pyproject.toml` with author details, or update this section.
 
 If you've deployed this, run into a bug, or built something interesting on top of it — open an issue or a discussion on GitHub. Every piece of feedback makes this better.
-
----
-
-*README generated from full codebase analysis. All sections reflect the actual project structure and code found in the repository.*
